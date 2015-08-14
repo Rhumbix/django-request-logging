@@ -8,7 +8,7 @@ request_logger = logging.getLogger('django.request')
 class LoggingMiddleware(object):
 
     def process_request(self, request):
-        request_logger.info(colorize("{} {}".format(request.method, request.path), fg="cyan"))
+        request_logger.info(colorize("{} {}".format(request.method, request.get_full_path()), fg="cyan"))
 
     def process_response(self, request, response):
         if (response.status_code in range(400, 600)):
@@ -18,7 +18,7 @@ class LoggingMiddleware(object):
             self.log_req_body(request)
             self.log_resp_body(response)
 
-        msg = "{} {} - {}".format(request.method, request.path, response.status_code)
+        msg = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
         request_logger.info(colorize(msg, fg="cyan"))
         return response
 
