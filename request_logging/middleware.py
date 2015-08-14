@@ -20,7 +20,7 @@ class LoggingMiddleware(object):
             self.log_req_body(request)
             self.log_resp_body(response)
 
-        request_logger.info(colorize("{} {} - {} {}ms\n".format(request.method, request.path, response.status_code, (datetime.now() - request.inbound_ts).total_seconds()), fg="cyan"))
+        request_logger.info(colorize("{} {} - {} {}ms".format(request.method, request.path, response.status_code, (datetime.now() - request.inbound_ts).total_seconds()), fg="cyan"))
         return response
 
     def log_req_body(self, request, level=logging.DEBUG):
@@ -38,5 +38,6 @@ class LoggingMiddleware(object):
         self.log_body(msg, level)
 
     def log_body(self, msg, level):
-        msg = colorize(msg, fg="magenta") if (level >= logging.ERROR) else msg
-        request_logger.log(level, msg)
+        for line in msg.split('\n'):
+            line = colorize(line, fg="magenta") if (level >= logging.ERROR) else line
+            request_logger.log(level, line)
