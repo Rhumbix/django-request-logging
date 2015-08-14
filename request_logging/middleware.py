@@ -1,7 +1,6 @@
 import logging
 import re
 from django.utils.termcolors import colorize
-from datetime import datetime
 
 request_logger = logging.getLogger('django.request')
 
@@ -10,7 +9,6 @@ class LoggingMiddleware(object):
 
     def process_request(self, request):
         request_logger.info(colorize("{} {}".format(request.method, request.path), fg="cyan"))
-        request.inbound_ts = datetime.now()
 
     def process_response(self, request, response):
         if (response.status_code in range(400, 600)):
@@ -21,7 +19,6 @@ class LoggingMiddleware(object):
             self.log_resp_body(response)
 
         msg = "{} {} - {}".format(request.method, request.path, response.status_code)
-        if (request.inbound_ts): msg += " {}".format((datetime.now() - request.inbound_ts).total_seconds())
         request_logger.info(colorize(msg, fg="cyan"))
         return response
 
