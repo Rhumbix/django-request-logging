@@ -7,5 +7,8 @@ setup(name='django-request-logging',
       author='Kenneth Jiang',
       author_email='kenneth@rhumbix.com',
       license='MIT',
-      packages=['django-request-logging'],
+      packages=['request_logging'],
+      install_requires=[
+          'Django',
+      ],
       zip_safe=False)
