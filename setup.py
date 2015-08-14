@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='django-request-logging',
-      version='0.2.4',
+      version='0.2.5',
       description='Django middleware that logs http request body.',
       url='https://github.com/rhumbixsf/django-request-logging.git',
       author='Kenneth Jiang',
