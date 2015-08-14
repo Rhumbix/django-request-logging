@@ -20,7 +20,7 @@ class LoggingMiddleware(object):
             self.log_req_body(request)
             self.log_resp_body(response)
 
-        request_logger.info(colorize("{} {} - {} {}ms".format(request.method, request.path, response.status_code, (datetime.now() - request.inbound_ts).total_seconds()), fg="cyan"))
+        request_logger.info(colorize("{} {} - {} {}ms\n".format(request.method, request.path, response.status_code, (datetime.now() - request.inbound_ts).total_seconds()), fg="cyan"))
         return response
 
     def log_req_body(self, request, level=logging.DEBUG):
