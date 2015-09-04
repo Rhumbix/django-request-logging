@@ -16,7 +16,7 @@ For example:
 ```
 MIDDLEWARE_CLASSES = (
     ...,
-    'django_cprofile_middleware.middleware.ProfilerMiddleware',
+    'request_logging.middleware.LoggingMiddleware',
     ...,
 )
 ```
