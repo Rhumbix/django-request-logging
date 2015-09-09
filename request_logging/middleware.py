@@ -31,7 +31,7 @@ class LoggingMiddleware(object):
         self.log_body(self.chunked_to_max(response.content), level)
 
     def log_body(self, msg, level=logging.DEBUG):
-        for line in msg.split('\n'):
+        for line in str(msg).split('\n'):
             line = colorize(line, fg="magenta") if (level >= logging.ERROR) else colorize(line, fg="cyan")
             request_logger.log(level, line)
 
