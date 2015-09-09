@@ -25,7 +25,7 @@ class LoggingMiddleware(object):
         return response
 
     def log_resp_body(self, response, level=logging.DEBUG):
-        if (not re.match('^application', response['Content-Type'], re.I)):  # only log content type: 'application/xxx'
+        if (not re.match('^application/json', response['Content-Type'], re.I)):  # only log content type: 'application/xxx'
             return
 
         self.log_body(self.chunked_to_max(response.content), level)
