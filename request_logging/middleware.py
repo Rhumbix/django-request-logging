@@ -25,6 +25,9 @@ class LoggingMiddleware(object):
         return response
 
     def log_resp_body(self, response, level=logging.DEBUG):
+        if not response.has_key('Content-Type'):
+            return
+
         if (not re.match('^application/json', response['Content-Type'], re.I)):  # only log content type: 'application/xxx'
             return
 
