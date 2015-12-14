@@ -37,6 +37,6 @@ class LoggingMiddleware(object):
 
     def chunked_to_max(self, msg):
         if (len(msg) > MAX_BODY_LENGTH):
-            return msg[0:MAX_BODY_LENGTH] + "\n...\n"
+            return "{0}\n...\n".format(msg[0:MAX_BODY_LENGTH])
         else:
             return msg
