@@ -2,7 +2,7 @@ import logging
 import re
 from django.utils.termcolors import colorize
 
-MAX_BODY_LENGTH = 50000  # log no more than 50k bytes of content
+MAX_BODY_LENGTH = 3000  # log no more than 3k bytes of content
 request_logger = logging.getLogger('django.request')
 
 
