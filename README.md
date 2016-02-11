@@ -21,6 +21,27 @@ MIDDLEWARE_CLASSES = (
 )
 ```
 
+And configure logging in your app:
+
+```
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'DEBUG',  # change debug level as appropiate
+            'propagate': False,
+        },
+    },
+}
+```
+
 ## Details
 
 Most of times you don't have to care about these details. But in case you need to dig deep:
