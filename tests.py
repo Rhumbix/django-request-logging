@@ -1,12 +1,14 @@
+import io, sys, os
+sys.path.append(os.environ['DE_PATH'])
 from django.test import RequestFactory
 from django.conf import settings
-import io
 from request_logging.middleware import MAX_BODY_LENGTH, LoggingMiddleware
+from request_logging.middleware import match_ignored
 import request_logging
 import unittest
 import mock
 
-settings.configure()
+#settings.configure()
 
 @mock.patch.object(request_logging.middleware, "request_logger")
 class ChunkedLogTestCase(unittest.TestCase):
@@ -40,4 +42,10 @@ class ChunkedLogTestCase(unittest.TestCase):
         text = " ".join([call[0][1] for call in calls])
         self.assertTrue(unexpected_entry not in text)
 
+class DigitalEventsTestCase(unittest.TestCase):
+    def test_match_ignored(self):
+        self.assertTrue (match_ignored('/foo', ['/foo']))
+        self.assertTrue (match_ignored('/foo', ['/foo', '/bar']))
+        self.assertFalse (match_ignored('/foo', ['/bar']))
+        self.assertFalse (match_ignored('/foo', ['/bar', '/bar/foo']))
 
