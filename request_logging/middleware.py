@@ -6,24 +6,25 @@ from django.conf import settings
 MAX_BODY_LENGTH = 50000  # log no more than 3k bytes of content
 request_logger = logging.getLogger('django.request')
 
-ignored_paths = settings.REQUEST_LOGGER_IGNORED_PATHS
 
-def match_ignored(path):
+def match_ignored(path, ignored_paths):
     for ignored in ignored_paths:
         if path.startswith(ignored):
             return True
     return False
 
 class LoggingMiddleware(object):
+    def __init__(self):
+        self.ignored_paths = settings.REQUEST_LOGGER_IGNORED_PATHS
 
     def process_request(self, request):
-        if not match_ignored(request.get_full_path()):
+        if not match_ignored(request.get_full_path(), self.ignored_paths):
             request_logger.info(colorize("{} {}".format(request.method, request.get_full_path()), fg="cyan"))
             if (request.body):
                 self.log_body(self.chunked_to_max(request.body), level=logging.INFO)
 
     def process_response(self, request, response):
-        if match_ignored(request.get_full_path()):
+        if match_ignored(request.get_full_path(), self.ignored_paths):
             return response
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
         if (response.status_code in range(400, 600)):
