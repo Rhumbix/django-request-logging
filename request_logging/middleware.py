@@ -1,12 +1,13 @@
 import logging
 import re
 from django.utils.termcolors import colorize
+from django.utils.deprecation import MiddlewareMixin
 
 MAX_BODY_LENGTH = 50000  # log no more than 3k bytes of content
 request_logger = logging.getLogger('django.request')
 
 
-class LoggingMiddleware(object):
+class LoggingMiddleware(MiddlewareMixin):
 
     def process_request(self, request):
         request_logger.info(colorize("{} {}".format(request.method, request.get_full_path()), fg="cyan"))
