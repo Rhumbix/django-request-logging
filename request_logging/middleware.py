@@ -33,6 +33,7 @@ class LoggingMiddleware(MiddlewareMixin):
             return
 
         self.log(self.chunked_to_max(response.content), level)
+        self.log(response._headers, level)
 
     @staticmethod
     def log(msg, level=logging.DEBUG):
