@@ -21,14 +21,14 @@ class LoggingMiddleware(MiddlewareMixin):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
         if (response.status_code in range(400, 600)):
             request_logger.info(colorize(resp_log, fg="magenta"))
-            self.log_resp_body(response, level=logging.ERROR)
+            self.log_resp(response, level=logging.ERROR)
         else:
             request_logger.info(colorize(resp_log, fg="cyan"))
-            self.log_resp_body(response)
+            self.log_resp(response)
 
         return response
 
-    def log_resp_body(self, response, level=logging.DEBUG):
+    def log_resp(self, response, level=logging.DEBUG):
         if (not re.match('^application/json', response.get('Content-Type', ''), re.I)):  # only log content type: 'application/xxx'
             return
 
