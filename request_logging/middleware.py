@@ -12,10 +12,10 @@ class LoggingMiddleware(MiddlewareMixin):
     def process_request(self, request):
         request_logger.info(colorize("{} {}".format(request.method, request.get_full_path()), fg="cyan"))
         headers = {k: v for k, v in request.META.items() if k.startswith('HTTP')}
-        if request.body:
-            self.log(self.chunked_to_max(request.body))
         if headers:
             self.log(headers)
+        if request.body:
+            self.log(self.chunked_to_max(request.body))
 
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
@@ -32,8 +32,8 @@ class LoggingMiddleware(MiddlewareMixin):
         if (not re.match('^application/json', response.get('Content-Type', ''), re.I)):  # only log content type: 'application/xxx'
             return
 
-        self.log(self.chunked_to_max(response.content), level)
         self.log(response._headers, level)
+        self.log(self.chunked_to_max(response.content), level)
 
     @staticmethod
     def log(msg, level=logging.DEBUG):
