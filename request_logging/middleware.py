@@ -11,7 +11,7 @@ class LoggingMiddleware(MiddlewareMixin):
 
     def process_request(self, request):
         request_logger.info(colorize("{} {}".format(request.method, request.get_full_path()), fg="cyan"))
-        headers = {k: v for k, v in request.META.items() if k.startswith('HTTP')}
+        headers = {k: v for k, v in request.META.items() if k.startswith('HTTP_')}
         if headers:
             self.log(headers)
         if request.body:
