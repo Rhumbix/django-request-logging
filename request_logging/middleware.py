@@ -29,7 +29,7 @@ class LoggingMiddleware(MiddlewareMixin):
         return response
 
     def _log_resp(self, response, level=logging.DEBUG):
-        if (not re.match('^application/json', response.get('Content-Type', ''), re.I)):  # only log content type: 'application/xxx'
+        if not re.match('^application/json', response.get('Content-Type', ''), re.I):  # only log content type: 'application/xxx'
             return
 
         self._log(response._headers, level)
@@ -41,7 +41,7 @@ class LoggingMiddleware(MiddlewareMixin):
             request_logger.log(level, line)
 
     def _chunked_to_max(self, msg):
-        if (len(msg) > MAX_BODY_LENGTH):
+        if len(msg) > MAX_BODY_LENGTH:
             return "{0}\n...\n".format(msg[0:MAX_BODY_LENGTH])
         else:
             return msg
