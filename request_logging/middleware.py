@@ -8,12 +8,6 @@ request_logger = logging.getLogger('django.request')
 
 
 class LoggingMiddleware(MiddlewareMixin):
-    def __call__(self, request):
-        self.process_request(request)
-        response = self.get_response(request)
-        self.process_response(request, response)
-
-        return response
 
     def process_request(self, request):
         request_logger.info(colorize("{} {}".format(request.method, request.get_full_path()), fg="cyan"))
@@ -51,4 +45,3 @@ class LoggingMiddleware(MiddlewareMixin):
             return "{0}\n...\n".format(msg[0:MAX_BODY_LENGTH])
         else:
             return msg
-

@@ -21,8 +21,6 @@ MIDDLEWARE_CLASSES = (
 )
 ```
 
-If you are using Django 1.11, then add ```request_logging.middleware.LoggingMiddleware``` to your ```MIDDLEWARE``` instead of ```MIDDLEWARE_CLASSES```.
-
 And configure logging in your app:
 
 ```
