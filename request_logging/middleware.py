@@ -1,13 +1,23 @@
 import logging
 import re
-from django.utils.termcolors import colorize
+
+from django.conf import settings
 from django.utils.deprecation import MiddlewareMixin
+from django.utils.termcolors import colorize
 
 MAX_BODY_LENGTH = 50000  # log no more than 3k bytes of content
 request_logger = logging.getLogger('django.request')
+LOGGING_LEVEL_SETTINGS_NAME = 'REQUEST_LOGGING_DETAILS_LOG_LEVEL'
 
 
 class LoggingMiddleware(MiddlewareMixin):
+    def __init__(self):
+        super().__init__()
+
+        self.log_level = getattr(settings, LOGGING_LEVEL_SETTINGS_NAME, logging.DEBUG)
+        if self.log_level not in [logging.NOTSET, logging.DEBUG, logging.INFO,
+                                  logging.WARNING, logging.ERROR, logging.CRITICAL]:
+            raise ValueError("Unknown log level({}) in setting({})".format(self.log_level, LOGGING_LEVEL_SETTINGS_NAME))
 
     def process_request(self, request):
         request_logger.info(colorize("{} {}".format(request.method, request.get_full_path()), fg="cyan"))
@@ -28,14 +38,15 @@ class LoggingMiddleware(MiddlewareMixin):
 
         return response
 
-    def _log_resp(self, response, level=logging.DEBUG):
+    def _log_resp(self, response, level=None):
         if not re.match('^application/json', response.get('Content-Type', ''), re.I):  # only log content type: 'application/xxx'
             return
 
         self._log(response._headers, level)
         self._log(self._chunked_to_max(response.content), level)
 
-    def _log(self, msg, level=logging.DEBUG):
+    def _log(self, msg, level=None):
+        level = level if level else self.log_level
         for line in str(msg).split('\n'):
             line = colorize(line, fg="magenta") if (level >= logging.ERROR) else colorize(line, fg="cyan")
             request_logger.log(level, line)

@@ -1,9 +1,10 @@
 import io
 import unittest
 
+import logging
 import mock
 from django.conf import settings
-from django.test import RequestFactory
+from django.test import RequestFactory, override_settings
 
 import request_logging
 from request_logging.middleware import LoggingMiddleware, MAX_BODY_LENGTH
@@ -55,3 +56,34 @@ class LogTestCase(unittest.TestCase):
         calls = mock_log.log.call_args_list
         text = " ".join([call[0][1] for call in calls])
         self.assertTrue(unexpected_entry not in text)
+
+
+@mock.patch.object(request_logging.middleware, "request_logger")
+class LogSettingsTestCase(unittest.TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def test_logging_default_debug_level(self, mock_log):
+        middleware = LoggingMiddleware()
+        request = self.factory.post("/somewhere",
+                                    **{'HTTP_USER_AGENT': 'silly-human'})
+        middleware.process_request(request)
+        self._assert_logged_with_level(mock_log, logging.DEBUG)
+
+    @override_settings(REQUEST_LOGGING_DETAILS_LOG_LEVEL=logging.INFO)
+    def test_logging_with_customized_level(self, mock_log):
+        middleware = LoggingMiddleware()
+        request = self.factory.post("/somewhere",
+                                    **{'HTTP_USER_AGENT': 'silly-human'})
+        middleware.process_request(request)
+        self._assert_logged_with_level(mock_log, logging.INFO)
+
+    @override_settings(REQUEST_LOGGING_DETAILS_LOG_LEVEL=None)
+    def test_invalid_settings(self, mock_log):
+        with self.assertRaises(ValueError):
+            LoggingMiddleware()
+
+    def _assert_logged_with_level(self, mock_log, level):
+        calls = mock_log.log.call_args_list
+        called_levels = set(call[0][0] for call in calls)
+        self.assertTrue(level in called_levels, "{} not in {}".format(level, called_levels))
