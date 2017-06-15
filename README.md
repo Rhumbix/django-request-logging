@@ -50,6 +50,13 @@ Most of times you don't have to care about these details. But in case you need t
 * If HTTP status code is between 400 - 599, URIs are logged at ERROR level, otherwise they are logged at INFO level.
 * If HTTP status code is between 400 - 599, data are logged at ERROR level, otherwise they are logged at DEBUG level.
 
+## Django settings
+You can customized some behaves of django-request-logging by following settings in Django `settings.py`.
+### REQUEST_LOGGING_DATA_LOG_LEVEL
+By default, data will log in DEBUG level, you can change to other valid level (Ex. logging.INFO) if need.
+### REQUEST_LOGGING_DISABLE_COLORIZE
+If you want to log into log file instead of console, you may want to remove ANSI color. You can set `REQUEST_LOGGING_DISABLE_COLORIZE=False` to disable colorize.
+
 ## Enjoy!
 
 Email me with any questions: [kenneth.jiang@gmail.com](kenneth.jiang@gmail.com).

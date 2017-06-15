@@ -1,9 +1,10 @@
 import io
 import unittest
 
+import logging
 import mock
 from django.conf import settings
-from django.test import RequestFactory
+from django.test import RequestFactory, override_settings
 
 import request_logging
 from request_logging.middleware import LoggingMiddleware, MAX_BODY_LENGTH
@@ -55,3 +56,67 @@ class LogTestCase(unittest.TestCase):
         calls = mock_log.log.call_args_list
         text = " ".join([call[0][1] for call in calls])
         self.assertTrue(unexpected_entry not in text)
+
+
+@mock.patch.object(request_logging.middleware, "request_logger")
+class LogSettingsTestCase(unittest.TestCase):
+    def setUp(self):
+        body = "some body"
+        datafile = io.StringIO(body)
+        self.request = RequestFactory().post(
+            "/somewhere",
+            data={'file': datafile},
+            **{'HTTP_USER_AGENT': 'silly-human'}
+        )
+
+    def test_logging_default_debug_level(self, mock_log):
+        middleware = LoggingMiddleware()
+        middleware.process_request(self.request)
+        self._assert_logged_with_level(mock_log, logging.DEBUG)
+
+    @override_settings(REQUEST_LOGGING_DATA_LOG_LEVEL=logging.INFO)
+    def test_logging_with_customized_log_level(self, mock_log):
+        middleware = LoggingMiddleware()
+        middleware.process_request(self.request)
+        self._assert_logged_with_level(mock_log, logging.INFO)
+
+    @override_settings(REQUEST_LOGGING_DATA_LOG_LEVEL=None)
+    def test_invalid_log_level_setting(self, mock_log):
+        with self.assertRaises(ValueError):
+            LoggingMiddleware()
+
+    def test_default_colorize(self, mock_log):
+        middleware = LoggingMiddleware()
+        middleware.process_request(self.request)
+        self.assertTrue(self._is_info_colorized(mock_log))
+        self.assertTrue(self._is_log_colorized(mock_log))
+
+    @override_settings(REQUEST_LOGGING_DISABLE_COLORIZE=False)
+    def test_disable_colorize(self, mock_log):
+        middleware = LoggingMiddleware()
+        middleware.process_request(self.request)
+        self.assertFalse(self._is_info_colorized(mock_log))
+        self.assertFalse(self._is_log_colorized(mock_log))
+
+    @override_settings(REQUEST_LOGGING_DISABLE_COLORIZE='Not a boolean')
+    def test_invalid_colorize_setting(self, mock_log):
+        with self.assertRaises(ValueError):
+            LoggingMiddleware()
+
+    def _assert_logged_with_level(self, mock_log, level):
+        calls = mock_log.log.call_args_list
+        called_levels = set(call[0][0] for call in calls)
+        self.assertTrue(level in called_levels, "{} not in {}".format(level, called_levels))
+
+    def _is_info_colorized(self, mock_log):
+        """Check if `\x1b[0m` (RESET) in the log str."""
+        reset_code = '\x1b[0m'
+        calls = mock_log.info.call_args_list
+        logs = " ".join(call[0][0] for call in calls)
+        return reset_code in logs
+
+    def _is_log_colorized(self, mock_log):
+        reset_code = '\x1b[0m'
+        calls = mock_log.log.call_args_list
+        logs = " ".join(call[0][1] for call in calls)
+        return reset_code in logs
