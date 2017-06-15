@@ -7,7 +7,7 @@ from django.utils.termcolors import colorize
 
 MAX_BODY_LENGTH = 50000  # log no more than 3k bytes of content
 SETTING_NAMES = {
-    'log_level': 'REQUEST_LOGGING_DETAILS_LOG_LEVEL',
+    'log_level': 'REQUEST_LOGGING_DATA_LOG_LEVEL',
     'colorize': 'REQUEST_LOGGING_DISABLE_COLORIZE'
 }
 request_logger = logging.getLogger('django.request')

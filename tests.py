@@ -74,13 +74,13 @@ class LogSettingsTestCase(unittest.TestCase):
         middleware.process_request(self.request)
         self._assert_logged_with_level(mock_log, logging.DEBUG)
 
-    @override_settings(REQUEST_LOGGING_DETAILS_LOG_LEVEL=logging.INFO)
+    @override_settings(REQUEST_LOGGING_DATA_LOG_LEVEL=logging.INFO)
     def test_logging_with_customized_log_level(self, mock_log):
         middleware = LoggingMiddleware()
         middleware.process_request(self.request)
         self._assert_logged_with_level(mock_log, logging.INFO)
 
-    @override_settings(REQUEST_LOGGING_DETAILS_LOG_LEVEL=None)
+    @override_settings(REQUEST_LOGGING_DATA_LOG_LEVEL=None)
     def test_invalid_log_level_setting(self, mock_log):
         with self.assertRaises(ValueError):
             LoggingMiddleware()
