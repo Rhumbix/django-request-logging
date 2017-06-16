@@ -14,8 +14,8 @@ request_logger = logging.getLogger('django.request')
 
 
 class LoggingMiddleware(MiddlewareMixin):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.log_level = getattr(settings, SETTING_NAMES['log_level'], logging.DEBUG)
         if self.log_level not in [logging.NOTSET, logging.DEBUG, logging.INFO,
