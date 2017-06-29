@@ -34,31 +34,32 @@ class LoggingMiddleware(MiddlewareMixin):
             method_path = colorize(method_path, fg="cyan")
         request_logger.info(method_path)
 
+        self._log_req(request)
+
+    def process_response(self, request, response):
+        if re.match('^application/json', response.get('Content-Type', ''), re.I):
+            resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
+            if response.status_code in range(400, 600):
+                if self.enable_colorize:
+                    resp_log = colorize(resp_log, fg="magenta")
+                request_logger.info(resp_log)
+                self._log_resp(response, level=logging.ERROR)
+            else:
+                if self.enable_colorize:
+                    resp_log = colorize(resp_log, fg="cyan")
+                request_logger.info(resp_log)
+                self._log_resp(response)
+
+        return response
+
+    def _log_req(self, request):
         headers = {k: v for k, v in request.META.items() if k.startswith('HTTP_')}
         if headers:
             self._log(headers)
         if request.body:
             self._log(self._chunked_to_max(request.body))
 
-    def process_response(self, request, response):
-        resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
-        if response.status_code in range(400, 600):
-            if self.enable_colorize:
-                resp_log = colorize(resp_log, fg="magenta")
-            request_logger.info(resp_log)
-            self._log_resp(response, level=logging.ERROR)
-        else:
-            if self.enable_colorize:
-                resp_log = colorize(resp_log, fg="cyan")
-            request_logger.info(resp_log)
-            self._log_resp(response)
-
-        return response
-
     def _log_resp(self, response, level=None):
-        if not re.match('^application/json', response.get('Content-Type', ''), re.I):  # only log content type: 'application/xxx'
-            return
-
         self._log(response._headers, level)
         self._log(self._chunked_to_max(response.content), level)
 
@@ -72,5 +73,5 @@ class LoggingMiddleware(MiddlewareMixin):
     def _chunked_to_max(self, msg):
         if len(msg) > MAX_BODY_LENGTH:
             return "{0}\n...\n".format(msg[0:MAX_BODY_LENGTH])
-        else:
-            return msg
+
+        return msg
