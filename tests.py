@@ -88,14 +88,12 @@ class LogSettingsTestCase(unittest.TestCase):
     def test_default_colorize(self, mock_log):
         middleware = LoggingMiddleware()
         middleware.process_request(self.request)
-        self.assertTrue(self._is_info_colorized(mock_log))
         self.assertTrue(self._is_log_colorized(mock_log))
 
     @override_settings(REQUEST_LOGGING_DISABLE_COLORIZE=False)
     def test_disable_colorize(self, mock_log):
         middleware = LoggingMiddleware()
         middleware.process_request(self.request)
-        self.assertFalse(self._is_info_colorized(mock_log))
         self.assertFalse(self._is_log_colorized(mock_log))
 
     @override_settings(REQUEST_LOGGING_DISABLE_COLORIZE='Not a boolean')
@@ -107,13 +105,6 @@ class LogSettingsTestCase(unittest.TestCase):
         calls = mock_log.log.call_args_list
         called_levels = set(call[0][0] for call in calls)
         self.assertTrue(level in called_levels, "{} not in {}".format(level, called_levels))
-
-    def _is_info_colorized(self, mock_log):
-        """Check if `\x1b[0m` (RESET) in the log str."""
-        reset_code = '\x1b[0m'
-        calls = mock_log.info.call_args_list
-        logs = " ".join(call[0][0] for call in calls)
-        return reset_code in logs
 
     def _is_log_colorized(self, mock_log):
         reset_code = '\x1b[0m'
