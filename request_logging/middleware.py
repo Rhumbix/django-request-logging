@@ -68,11 +68,10 @@ class LoggingMiddleware(MiddlewareMixin):
             self.logger.log(self.log_level, self._chunked_to_max(request.body))
 
     def process_response(self, request, response):
+        resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
+        self.logger.log(logging.INFO, resp_log)
+
         if re.match('^application/json', response.get('Content-Type', ''), re.I):
-            resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
-
-            self.logger.log(logging.INFO, resp_log)
-
             if response.status_code in range(400, 600):
                 self.logger.log_error(logging.ERROR, response._headers)
                 self.logger.log_error(logging.ERROR, self._chunked_to_max(response.content))
