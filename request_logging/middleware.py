@@ -28,9 +28,11 @@ class ColourLogger(Logger):
         self.log_error_colour = log_error_colour
 
     def log(self, level, msg):
-        self._log(level, msg, self.log_colour)
+        colour = self.log_error_colour if level >= logging.ERROR else self.log_colour
+        self._log(level, msg, colour)
 
     def log_error(self, level, msg):
+        # Forces colour to be log_error_colour no matter what level is
         self._log(level, msg, self.log_error_colour)
 
     def _log(self, level, msg, colour):
@@ -70,22 +72,19 @@ class LoggingMiddleware(MiddlewareMixin):
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
 
-        is_content_type_matched = re.match('^application/json', response.get('Content-Type', ''), re.I)
-
         if response.status_code in range(400, 600):
             self.logger.log_error(logging.INFO, resp_log)
-
-            if is_content_type_matched:
-                self.logger.log_error(logging.ERROR, response._headers)
-                self.logger.log_error(logging.ERROR, self._chunked_to_max(response.content))
+            self._log_resp(logging.ERROR, response)
         else:
             self.logger.log(logging.INFO, resp_log)
-
-            if is_content_type_matched:
-                self.logger.log(self.log_level, response._headers)
-                self.logger.log(self.log_level, self._chunked_to_max(response.content))
+            self._log_resp(self.log_level, response)
 
         return response
+
+    def _log_resp(self, level, response):
+        if re.match('^application/json', response.get('Content-Type', ''), re.I):
+            self.logger.log(level, response._headers)
+            self.logger.log(level, self._chunked_to_max(response.content))
 
     def _chunked_to_max(self, msg):
         if len(msg) > MAX_BODY_LENGTH:
