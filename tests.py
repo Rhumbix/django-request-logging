@@ -7,7 +7,7 @@ from django.conf import settings
 from django.test import RequestFactory, override_settings
 
 import request_logging
-from request_logging.middleware import LoggingMiddleware, DEFAULT_MAX_BODY_LENGTH
+from request_logging.middleware import LoggingMiddleware, DEFAULT_LOG_LEVEL, DEFAULT_COLORIZE, DEFAULT_MAX_BODY_LENGTH
 
 settings.configure()
 
@@ -73,7 +73,7 @@ class LogSettingsLogLevelTestCase(BaseLogSettingsTestCase):
     def test_logging_default_debug_level(self, mock_log):
         middleware = LoggingMiddleware()
         middleware.process_request(self.request)
-        self._assert_logged_with_level(mock_log, logging.DEBUG)
+        self._assert_logged_with_level(mock_log, DEFAULT_LOG_LEVEL)
 
     @override_settings(REQUEST_LOGGING_DATA_LOG_LEVEL=logging.INFO)
     def test_logging_with_customized_log_level(self, mock_log):
@@ -92,7 +92,7 @@ class LogSettingsColorizeTestCase(BaseLogSettingsTestCase):
     def test_default_colorize(self, mock_log):
         middleware = LoggingMiddleware()
         middleware.process_request(self.request)
-        self.assertTrue(self._is_log_colorized(mock_log))
+        self.assertEquals(DEFAULT_COLORIZE, self._is_log_colorized(mock_log))
 
     @override_settings(REQUEST_LOGGING_DISABLE_COLORIZE=False)
     def test_disable_colorize(self, mock_log):

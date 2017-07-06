@@ -5,6 +5,8 @@ from django.conf import settings
 from django.utils.deprecation import MiddlewareMixin
 from django.utils.termcolors import colorize
 
+DEFAULT_LOG_LEVEL = logging.DEBUG
+DEFAULT_COLORIZE = True
 DEFAULT_MAX_BODY_LENGTH = 50000  # log no more than 3k bytes of content
 SETTING_NAMES = {
     'log_level': 'REQUEST_LOGGING_DATA_LOG_LEVEL',
@@ -46,12 +48,12 @@ class LoggingMiddleware(MiddlewareMixin):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.log_level = getattr(settings, SETTING_NAMES['log_level'], logging.DEBUG)
+        self.log_level = getattr(settings, SETTING_NAMES['log_level'], DEFAULT_LOG_LEVEL)
         if self.log_level not in [logging.NOTSET, logging.DEBUG, logging.INFO,
                                   logging.WARNING, logging.ERROR, logging.CRITICAL]:
             raise ValueError("Unknown log level({}) in setting({})".format(self.log_level, SETTING_NAMES['log_level']))
 
-        enable_colorize = getattr(settings, SETTING_NAMES['colorize'], True)
+        enable_colorize = getattr(settings, SETTING_NAMES['colorize'], DEFAULT_COLORIZE)
         if type(enable_colorize) is not bool:
             raise ValueError(
                 "{} should be boolean. {} is not boolean.".format(SETTING_NAMES['colorize'], enable_colorize)
