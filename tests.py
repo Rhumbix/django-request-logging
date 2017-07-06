@@ -82,7 +82,7 @@ class LogSettingsLogLevelTestCase(BaseLogSettingsTestCase):
         self._assert_logged_with_level(mock_log, logging.INFO)
 
     @override_settings(REQUEST_LOGGING_DATA_LOG_LEVEL=None)
-    def test_invalid_log_level_setting(self, mock_log):
+    def test_invalid_log_level(self, mock_log):
         with self.assertRaises(ValueError):
             LoggingMiddleware()
 
@@ -101,7 +101,7 @@ class LogSettingsColorizeTestCase(BaseLogSettingsTestCase):
         self.assertFalse(self._is_log_colorized(mock_log))
 
     @override_settings(REQUEST_LOGGING_DISABLE_COLORIZE='Not a boolean')
-    def test_invalid_colorize_setting(self, mock_log):
+    def test_invalid_colorize(self, mock_log):
         with self.assertRaises(ValueError):
             LoggingMiddleware()
 
