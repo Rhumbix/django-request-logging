@@ -5,10 +5,13 @@ from django.conf import settings
 from django.utils.deprecation import MiddlewareMixin
 from django.utils.termcolors import colorize
 
-MAX_BODY_LENGTH = 50000  # log no more than 3k bytes of content
+DEFAULT_LOG_LEVEL = logging.DEBUG
+DEFAULT_COLORIZE = True
+DEFAULT_MAX_BODY_LENGTH = 50000  # log no more than 3k bytes of content
 SETTING_NAMES = {
     'log_level': 'REQUEST_LOGGING_DATA_LOG_LEVEL',
-    'colorize': 'REQUEST_LOGGING_DISABLE_COLORIZE'
+    'colorize': 'REQUEST_LOGGING_DISABLE_COLORIZE',
+    'max_body_length': 'REQUEST_LOGGING_MAX_BODY_LENGTH'
 }
 request_logger = logging.getLogger('django.request')
 
@@ -45,15 +48,21 @@ class LoggingMiddleware(MiddlewareMixin):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.log_level = getattr(settings, SETTING_NAMES['log_level'], logging.DEBUG)
+        self.log_level = getattr(settings, SETTING_NAMES['log_level'], DEFAULT_LOG_LEVEL)
         if self.log_level not in [logging.NOTSET, logging.DEBUG, logging.INFO,
                                   logging.WARNING, logging.ERROR, logging.CRITICAL]:
             raise ValueError("Unknown log level({}) in setting({})".format(self.log_level, SETTING_NAMES['log_level']))
 
-        enable_colorize = getattr(settings, SETTING_NAMES['colorize'], True)
+        enable_colorize = getattr(settings, SETTING_NAMES['colorize'], DEFAULT_COLORIZE)
         if type(enable_colorize) is not bool:
             raise ValueError(
                 "{} should be boolean. {} is not boolean.".format(SETTING_NAMES['colorize'], enable_colorize)
+            )
+
+        self.max_body_length = getattr(settings, SETTING_NAMES['max_body_length'], DEFAULT_MAX_BODY_LENGTH)
+        if type(self.max_body_length) is not int:
+            raise ValueError(
+                "{} should be int. {} is not int.".format(SETTING_NAMES['max_body_length'], self.max_body_length)
             )
 
         self.logger = ColourLogger("cyan", "magenta") if enable_colorize else Logger()
@@ -87,7 +96,7 @@ class LoggingMiddleware(MiddlewareMixin):
             self.logger.log(level, self._chunked_to_max(response.content))
 
     def _chunked_to_max(self, msg):
-        if len(msg) > MAX_BODY_LENGTH:
-            return "{0}\n...\n".format(msg[0:MAX_BODY_LENGTH])
+        if len(msg) > self.max_body_length:
+            return "{0}\n...\n".format(msg[0:self.max_body_length])
 
         return msg
