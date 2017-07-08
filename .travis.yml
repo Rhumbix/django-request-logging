@@ -1,0 +1,15 @@
+language: python
+sudo: false
+branches:
+  only:
+    - master
+python:
+  - 3.4
+  - 3.5
+  - 3.6
+install:
+  - pip install -r requirements-dev.txt
+script:
+  - coverage run --source=request_logging -m unittest
+after_success:
+  - coverage report
