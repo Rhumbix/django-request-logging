@@ -13,6 +13,8 @@ SETTING_NAMES = {
     'colorize': 'REQUEST_LOGGING_DISABLE_COLORIZE',
     'max_body_length': 'REQUEST_LOGGING_MAX_BODY_LENGTH'
 }
+BINARY_REGEX = re.compile('(.+Content-Type:.*?)(\S+)/(\S+)(?:\r\n)*(.+)', re.S | re.I)
+BINARY_TYPES = ('image', 'application')
 request_logger = logging.getLogger('django.request')
 
 
@@ -46,7 +48,7 @@ class ColourLogger(Logger):
 
 class LoggingMiddleware(MiddlewareMixin):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super(LoggingMiddleware, self).__init__(*args, **kwargs)
 
         self.log_level = getattr(settings, SETTING_NAMES['log_level'], DEFAULT_LOG_LEVEL)
         if self.log_level not in [logging.NOTSET, logging.DEBUG, logging.INFO,
@@ -66,17 +68,26 @@ class LoggingMiddleware(MiddlewareMixin):
             )
 
         self.logger = ColourLogger("cyan", "magenta") if enable_colorize else Logger()
+        self.boundary = ''
 
     def process_request(self, request):
         method_path = "{} {}".format(request.method, request.get_full_path())
         self.logger.log(logging.INFO, method_path)
+
+        content_type = request.META.get('CONTENT_TYPE', '')
+        is_multipart = content_type.startswith('multipart/form-data')
+        if is_multipart:
+            self.boundary = '--' + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
 
         headers = {k: v for k, v in request.META.items() if k.startswith('HTTP_')}
 
         if headers:
             self.logger.log(self.log_level, headers)
         if request.body:
-            self.logger.log(self.log_level, self._chunked_to_max(request.body))
+            if is_multipart:
+                self._log_multipart(self._chunked_to_max(request.body))
+            else:
+                self.logger.log(self.log_level, self._chunked_to_max(request.body))
 
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
@@ -90,13 +101,30 @@ class LoggingMiddleware(MiddlewareMixin):
 
         return response
 
+    def _log_multipart(self, body):
+        """
+        Splits multipart body into parts separated by "boundary", then matches each part to BINARY_REGEX
+        which searches for existance of "Content-Type" and capture of what type is this part.
+        If it is an image or an application replace that content with "(binary data)" string.
+        """
+        parts = str(body).split(self.boundary)
+        last = len(parts) - 1
+        for i, part in enumerate(parts):
+            if 'Content-Type:' in part:
+                match = BINARY_REGEX.search(part)
+                if match and match.group(2) in BINARY_TYPES and not match.group(4) in ('', '\r\n'):
+                    part = match.expand(r'\1\2/\3\r\n\r\n(binary data)\r\n')
+
+            if i != last:
+                part = part + self.boundary
+
+            self.logger.log(self.log_level, part)
+
     def _log_resp(self, level, response):
         if re.match('^application/json', response.get('Content-Type', ''), re.I):
             self.logger.log(level, response._headers)
             self.logger.log(level, self._chunked_to_max(response.content))
 
     def _chunked_to_max(self, msg):
-        if len(msg) > self.max_body_length:
-            return "{0}\n...\n".format(msg[0:self.max_body_length])
+        return msg[0:self.max_body_length]
 
-        return msg

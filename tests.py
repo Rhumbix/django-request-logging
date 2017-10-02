@@ -15,7 +15,7 @@ settings.configure()
 class BaseLogTestCase(unittest.TestCase):
     def _assert_logged(self, mock_log, expected_entry):
         calls = mock_log.log.call_args_list
-        text = " ".join([call[0][1] for call in calls])
+        text = "".join([call[0][1] for call in calls])
         self.assertTrue(expected_entry in text)
 
     def _assert_logged_with_level(self, mock_log, level):
@@ -37,10 +37,16 @@ class LogTestCase(BaseLogTestCase):
 
     def test_request_body_logged(self, mock_log):
         body = "some body"
+        request = self.factory.post("/somewhere", data={"file": body})
+        self.middleware.process_request(request)
+        self._assert_logged(mock_log, body)
+
+    def test_request_binary_logged(self, mock_log):
+        body = "some body"
         datafile = io.StringIO(body)
         request = self.factory.post("/somewhere", data={"file": datafile})
         self.middleware.process_request(request)
-        self._assert_logged(mock_log, "some body")
+        self._assert_logged(mock_log, "(binary data)")
 
     def test_request_headers_logged(self, mock_log):
         request = self.factory.post("/somewhere",
@@ -92,7 +98,7 @@ class LogSettingsColorizeTestCase(BaseLogSettingsTestCase):
     def test_default_colorize(self, mock_log):
         middleware = LoggingMiddleware()
         middleware.process_request(self.request)
-        self.assertEquals(DEFAULT_COLORIZE, self._is_log_colorized(mock_log))
+        self.assertEqual(DEFAULT_COLORIZE, self._is_log_colorized(mock_log))
 
     @override_settings(REQUEST_LOGGING_DISABLE_COLORIZE=False)
     def test_disable_colorize(self, mock_log):
@@ -120,25 +126,24 @@ class LogSettingsColorizeTestCase(BaseLogSettingsTestCase):
 
 @mock.patch.object(request_logging.middleware, "request_logger")
 class LogSettingsMaxLengthTestCase(BaseLogTestCase):
+    @override_settings(REQUEST_LOGGING_DISABLE_COLORIZE=False)
     def test_default_max_body_length(self, mock_log):
         factory = RequestFactory()
         middleware = LoggingMiddleware()
 
         body = DEFAULT_MAX_BODY_LENGTH * "0" + "1"
-        datafile = io.StringIO(body)
-        request = factory.post("/somewhere", data={"file": datafile})
+        request = factory.post("/somewhere", data={"file": body})
         middleware.process_request(request)
         self._assert_logged(mock_log, str(request.body[:DEFAULT_MAX_BODY_LENGTH]))
         self._assert_not_logged(mock_log, body)
 
-    @override_settings(REQUEST_LOGGING_MAX_BODY_LENGTH=150)
+    @override_settings(REQUEST_LOGGING_MAX_BODY_LENGTH=150, REQUEST_LOGGING_DISABLE_COLORIZE=False)
     def test_customized_max_body_length(self, mock_log):
         factory = RequestFactory()
         middleware = LoggingMiddleware()
 
         body = 150 * "0" + "1"
-        datafile = io.StringIO(body)
-        request = factory.post("/somewhere", data={"file": datafile})
+        request = factory.post("/somewhere", data={"file": body})
         middleware.process_request(request)
         self._assert_logged(mock_log, str(request.body[:150]))
         self._assert_not_logged(mock_log, body)
