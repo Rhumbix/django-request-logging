@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 import io
 import unittest
+import re
 
 import logging
 import mock
@@ -195,7 +196,9 @@ class LogSettingsMaxLengthTestCase(BaseLogTestCase):
         body = DEFAULT_MAX_BODY_LENGTH * "0" + "1"
         request = factory.post("/somewhere", data={"file": body})
         middleware.process_request(request)
-        self._assert_logged(mock_log, str(request.body[:DEFAULT_MAX_BODY_LENGTH]))
+
+        request_body_str = request.body if isinstance(request.body, str) else request.body.decode()
+        self._assert_logged(mock_log, re.sub(r'\r?\n', '', request_body_str[:DEFAULT_MAX_BODY_LENGTH]))
         self._assert_not_logged(mock_log, body)
 
     @override_settings(REQUEST_LOGGING_MAX_BODY_LENGTH=150, REQUEST_LOGGING_DISABLE_COLORIZE=False)
@@ -206,7 +209,9 @@ class LogSettingsMaxLengthTestCase(BaseLogTestCase):
         body = 150 * "0" + "1"
         request = factory.post("/somewhere", data={"file": body})
         middleware.process_request(request)
-        self._assert_logged(mock_log, str(request.body[:150]))
+
+        request_body_str = request.body if isinstance(request.body, str) else request.body.decode()
+        self._assert_logged(mock_log, re.sub(r'\r?\n', '', request_body_str[:150]))
         self._assert_not_logged(mock_log, body)
 
     @override_settings(REQUEST_LOGGING_MAX_BODY_LENGTH='Not an int')

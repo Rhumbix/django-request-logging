@@ -22,7 +22,7 @@ class Logger:
     def log(self, level, msg, logging_context):
         args = logging_context['args']
         kwargs = logging_context['kwargs']
-        for line in str(msg).split('\n'):
+        for line in re.split(r'\r?\n', str(msg)):
             request_logger.log(level, line, *args, **kwargs)
 
     def log_error(self, level, msg, logging_context):
@@ -45,7 +45,7 @@ class ColourLogger(Logger):
     def _log(self, level, msg, colour, logging_context):
         args = logging_context['args']
         kwargs = logging_context['kwargs']
-        for line in str(msg).split('\n'):
+        for line in re.split(r'\r?\n', str(msg)):
             line = colorize(line, fg=colour)
             request_logger.log(level, line, *args, **kwargs)
 
@@ -129,7 +129,8 @@ class LoggingMiddleware(MiddlewareMixin):
         which searches for existance of "Content-Type" and capture of what type is this part.
         If it is an image or an application replace that content with "(binary data)" string.
         """
-        parts = str(body).split(self.boundary)
+        body_str = body if isinstance(body, str) else body.decode()
+        parts = body_str.split(self.boundary)
         last = len(parts) - 1
         for i, part in enumerate(parts):
             if 'Content-Type:' in part:
