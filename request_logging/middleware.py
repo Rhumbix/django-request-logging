@@ -19,12 +19,14 @@ request_logger = logging.getLogger('django.request')
 
 
 class Logger:
-    def log(self, level, msg, extra=None):
+    def log(self, level, msg, logging_context):
+        args = logging_context.args
+        kwargs = logging_context.kwargs
         for line in str(msg).split('\n'):
-            request_logger.log(level, line, extra=extra)
+            request_logger.log(level, line, *args, **kwargs)
 
-    def log_error(self, level, msg, extra=None):
-        self.log(level, msg, extra=extra)
+    def log_error(self, level, msg, logging_context):
+        self.log(level, msg, logging_context)
 
 
 class ColourLogger(Logger):
@@ -32,18 +34,20 @@ class ColourLogger(Logger):
         self.log_colour = log_colour
         self.log_error_colour = log_error_colour
 
-    def log(self, level, msg, extra=None):
+    def log(self, level, msg, logging_context):
         colour = self.log_error_colour if level >= logging.ERROR else self.log_colour
-        self._log(level, msg, colour, extra=extra)
+        self._log(level, msg, colour, logging_context)
 
-    def log_error(self, level, msg, extra=None):
+    def log_error(self, level, msg, logging_context):
         # Forces colour to be log_error_colour no matter what level is
-        self._log(level, msg, self.log_error_colour, extra)
+        self._log(level, msg, self.log_error_colour, logging_context)
 
-    def _log(self, level, msg, colour, extra=None):
+    def _log(self, level, msg, colour, logging_context):
+        args = logging_context.args
+        kwargs = logging_context.kwargs
         for line in str(msg).split('\n'):
             line = colorize(line, fg=colour)
-            request_logger.log(level, line, extra=extra)
+            request_logger.log(level, line, *args, **kwargs)
 
 
 class LoggingMiddleware(MiddlewareMixin):
@@ -72,8 +76,8 @@ class LoggingMiddleware(MiddlewareMixin):
 
     def process_request(self, request):
         method_path = "{} {}".format(request.method, request.get_full_path())
-        extra = self._get_log_record_extra(request, None)
-        self.logger.log(logging.INFO, method_path, extra=extra)
+        logging_context = self._get_logging_context(request, None)
+        self.logger.log(logging.INFO, method_path, logging_context)
 
         content_type = request.META.get('CONTENT_TYPE', '')
         is_multipart = content_type.startswith('multipart/form-data')
@@ -83,30 +87,43 @@ class LoggingMiddleware(MiddlewareMixin):
         headers = {k: v for k, v in request.META.items() if k.startswith('HTTP_')}
 
         if headers:
-            self.logger.log(self.log_level, headers, extra=extra)
+            self.logger.log(self.log_level, headers, logging_context)
         if request.body:
             if is_multipart:
                 self._log_multipart(self._chunked_to_max(request.body))
             else:
-                self.logger.log(self.log_level, self._chunked_to_max(request.body), extra=extra)
+                self.logger.log(self.log_level, self._chunked_to_max(request.body), logging_context)
 
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
-        extra = self._get_log_record_extra(request, response)
+        logging_context = self._get_logging_context(request, response)
 
         if response.status_code in range(400, 600):
-            self.logger.log_error(logging.INFO, resp_log, extra=extra)
-            self._log_resp(logging.ERROR, response, extra=extra)
+            self.logger.log_error(logging.INFO, resp_log, logging_context)
+            self._log_resp(logging.ERROR, response, logging_context)
         else:
-            self.logger.log(logging.INFO, resp_log, extra=extra)
-            self._log_resp(self.log_level, response, extra=extra)
+            self.logger.log(logging.INFO, resp_log, logging_context)
+            self._log_resp(self.log_level, response, logging_context)
 
         return response
 
-    def _get_log_record_extra(self, request, response):
-        return {'request': request, 'response': response}
+    def _get_logging_context(self, request, response):
+        """
+        Returns a map with args and kwargs to provide additional context to calls to logging.log().
+        This allows the logging context to be created per process request/response call.
 
-    def _log_multipart(self, body, extra=None):
+        """
+        return {
+            'args': (),
+            'kwargs': {
+                'extra': {
+                    'request': request,
+                    'response': response,
+                },
+            },
+        }
+
+    def _log_multipart(self, body, logging_context):
         """
         Splits multipart body into parts separated by "boundary", then matches each part to BINARY_REGEX
         which searches for existance of "Content-Type" and capture of what type is this part.
@@ -123,12 +140,12 @@ class LoggingMiddleware(MiddlewareMixin):
             if i != last:
                 part = part + self.boundary
 
-            self.logger.log(self.log_level, part, extra=extra)
+            self.logger.log(self.log_level, part, logging_context)
 
-    def _log_resp(self, level, response, extra=None):
+    def _log_resp(self, level, response, logging_context):
         if re.match('^application/json', response.get('Content-Type', ''), re.I):
-            self.logger.log(level, response._headers, extra=extra)
-            self.logger.log(level, self._chunked_to_max(response.content), extra=extra)
+            self.logger.log(level, response._headers, logging_context)
+            self.logger.log(level, self._chunked_to_max(response.content), logging_context)
 
     def _chunked_to_max(self, msg):
         return msg[0:self.max_body_length]
