@@ -20,8 +20,8 @@ request_logger = logging.getLogger('django.request')
 
 class Logger:
     def log(self, level, msg, logging_context):
-        args = logging_context.args
-        kwargs = logging_context.kwargs
+        args = logging_context['args']
+        kwargs = logging_context['kwargs']
         for line in str(msg).split('\n'):
             request_logger.log(level, line, *args, **kwargs)
 
@@ -43,8 +43,8 @@ class ColourLogger(Logger):
         self._log(level, msg, self.log_error_colour, logging_context)
 
     def _log(self, level, msg, colour, logging_context):
-        args = logging_context.args
-        kwargs = logging_context.kwargs
+        args = logging_context['args']
+        kwargs = logging_context['kwargs']
         for line in str(msg).split('\n'):
             line = colorize(line, fg=colour)
             request_logger.log(level, line, *args, **kwargs)
