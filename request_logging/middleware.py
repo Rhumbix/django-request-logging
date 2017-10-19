@@ -13,7 +13,7 @@ SETTING_NAMES = {
     'colorize': 'REQUEST_LOGGING_DISABLE_COLORIZE',
     'max_body_length': 'REQUEST_LOGGING_MAX_BODY_LENGTH'
 }
-BINARY_REGEX = re.compile('(.+Content-Type:.*?)(\S+)/(\S+)(?:\r\n)*(.+)', re.S | re.I)
+BINARY_REGEX = re.compile(r'(.+Content-Type:.*?)(\S+)/(\S+)(?:\r\n)*(.+)', re.S | re.I)
 BINARY_TYPES = ('image', 'application')
 request_logger = logging.getLogger('django.request')
 
@@ -56,13 +56,13 @@ class LoggingMiddleware(MiddlewareMixin):
             raise ValueError("Unknown log level({}) in setting({})".format(self.log_level, SETTING_NAMES['log_level']))
 
         enable_colorize = getattr(settings, SETTING_NAMES['colorize'], DEFAULT_COLORIZE)
-        if type(enable_colorize) is not bool:
+        if not isinstance(enable_colorize, bool):
             raise ValueError(
                 "{} should be boolean. {} is not boolean.".format(SETTING_NAMES['colorize'], enable_colorize)
             )
 
         self.max_body_length = getattr(settings, SETTING_NAMES['max_body_length'], DEFAULT_MAX_BODY_LENGTH)
-        if type(self.max_body_length) is not int:
+        if not isinstance(self.max_body_length, int):
             raise ValueError(
                 "{} should be int. {} is not int.".format(SETTING_NAMES['max_body_length'], self.max_body_length)
             )
@@ -127,4 +127,3 @@ class LoggingMiddleware(MiddlewareMixin):
 
     def _chunked_to_max(self, msg):
         return msg[0:self.max_body_length]
-
