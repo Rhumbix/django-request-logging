@@ -90,7 +90,7 @@ class LoggingMiddleware(MiddlewareMixin):
             self.logger.log(self.log_level, headers, logging_context)
         if request.body:
             if is_multipart:
-                self._log_multipart(self._chunked_to_max(request.body))
+                self._log_multipart(self._chunked_to_max(request.body), logging_context)
             else:
                 self.logger.log(self.log_level, self._chunked_to_max(request.body), logging_context)
 
