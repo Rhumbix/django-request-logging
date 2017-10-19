@@ -16,17 +16,17 @@ class BaseLogTestCase(unittest.TestCase):
     def _assert_logged(self, mock_log, expected_entry):
         calls = mock_log.log.call_args_list
         text = "".join([call[0][1] for call in calls])
-        self.assertTrue(expected_entry in text)
+        self.assertIn( expected_entry, text )
 
     def _assert_logged_with_level(self, mock_log, level):
         calls = mock_log.log.call_args_list
         called_levels = set(call[0][0] for call in calls)
-        self.assertTrue(level in called_levels, "{} not in {}".format(level, called_levels))
+        self.assertIn(level, called_levels, "{} not in {}".format(level, called_levels))
 
     def _assert_not_logged(self, mock_log, unexpected_entry):
         calls = mock_log.log.call_args_list
         text = " ".join([call[0][1] for call in calls])
-        self.assertTrue(unexpected_entry not in text)
+        self.assertNotIn(unexpected_entry, text)
 
 
 @mock.patch.object(request_logging.middleware, "request_logger")
