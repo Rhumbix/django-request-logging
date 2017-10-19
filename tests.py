@@ -23,6 +23,14 @@ class BaseLogTestCase(unittest.TestCase):
         called_levels = set(call[0][0] for call in calls)
         self.assertTrue(level in called_levels, "{} not in {}".format(level, called_levels))
 
+    def _asset_logged_with_additional_args_and_kwargs(self, mock_log, additional_args, kwargs):
+        calls = mock_log.log.call_args_list
+        for call_args, call_kwargs in calls:
+            additional_call_args = call_args[2:]
+            self.assertTrue(additional_args == additional_call_args,
+                            "Expected {} to be {}".format(additional_call_args, additional_args))
+            self.assertTrue(kwargs == call_kwargs, "Expected {} to be {}".format(call_kwargs, kwargs))
+
     def _assert_not_logged(self, mock_log, unexpected_entry):
         calls = mock_log.log.call_args_list
         text = " ".join([call[0][1] for call in calls])
@@ -61,6 +69,58 @@ class LogTestCase(BaseLogTestCase):
         response._headers = {'test_headers': 'test_headers'}
         self.middleware.process_response(request, response)
         self._assert_logged(mock_log, "test_headers")
+
+
+@mock.patch.object(request_logging.middleware, "request_logger")
+class LoggingContextTestCase(BaseLogTestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.middleware = LoggingMiddleware()
+
+    def test_request_logging_context(self, mock_log):
+        request = self.factory.post("/somewhere")
+        self.middleware.process_request(request)
+        self._asset_logged_with_additional_args_and_kwargs(mock_log, (), {
+            'extra': {
+                'request': request,
+                'response': None,
+            },
+        })
+
+    def test_response_logging_context(self, mock_log):
+        request = self.factory.post("/somewhere")
+        response = mock.MagicMock()
+        response.get.return_value = 'application/json'
+        response._headers = {'test_headers': 'test_headers'}
+        self.middleware.process_response(request, response)
+        self._asset_logged_with_additional_args_and_kwargs(mock_log, (), {
+            'extra': {
+                'request': request,
+                'response': response,
+            },
+        })
+
+    def test_get_logging_context_extensibility(self, mock_log):
+        request = self.factory.post("/somewhere")
+        self.middleware._get_logging_context = lambda request, response: {
+            'args': (1, True, 'Test'),
+            'kwargs': {
+                'extra': {
+                    'REQUEST': request,
+                    'middleware': self.middleware,
+                },
+                'exc_info': True,
+            },
+        }
+
+        self.middleware.process_request(request)
+        self._asset_logged_with_additional_args_and_kwargs(mock_log, (1, True, 'Test'), {
+            'extra': {
+                'REQUEST': request,
+                'middleware': self.middleware,
+            },
+            'exc_info': True,
+        })
 
 
 class BaseLogSettingsTestCase(BaseLogTestCase):
