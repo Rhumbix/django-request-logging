@@ -36,13 +36,13 @@ class LogTestCase(BaseLogTestCase):
         self.middleware = LoggingMiddleware()
 
     def test_request_body_logged(self, mock_log):
-        body = "some body"
+        body = u"some body"
         request = self.factory.post("/somewhere", data={"file": body})
         self.middleware.process_request(request)
         self._assert_logged(mock_log, body)
 
     def test_request_binary_logged(self, mock_log):
-        body = "some body"
+        body = u"some body"
         datafile = io.StringIO(body)
         request = self.factory.post("/somewhere", data={"file": datafile})
         self.middleware.process_request(request)
@@ -65,7 +65,7 @@ class LogTestCase(BaseLogTestCase):
 
 class BaseLogSettingsTestCase(BaseLogTestCase):
     def setUp(self):
-        body = "some body"
+        body = u"some body"
         datafile = io.StringIO(body)
         self.request = RequestFactory().post(
             "/somewhere",
