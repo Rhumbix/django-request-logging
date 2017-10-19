@@ -2,7 +2,6 @@ import logging
 import re
 
 from django.conf import settings
-from django.utils.deprecation import MiddlewareMixin
 from django.utils.termcolors import colorize
 
 DEFAULT_LOG_LEVEL = logging.DEBUG
@@ -50,9 +49,9 @@ class ColourLogger(Logger):
             request_logger.log(level, line, *args, **kwargs)
 
 
-class LoggingMiddleware(MiddlewareMixin):
-    def __init__(self, *args, **kwargs):
-        super(LoggingMiddleware, self).__init__(*args, **kwargs)
+class LoggingMiddleware(object):
+    def __init__(self, get_response=None):
+        self.get_response = get_response
 
         self.log_level = getattr(settings, SETTING_NAMES['log_level'], DEFAULT_LOG_LEVEL)
         if self.log_level not in [logging.NOTSET, logging.DEBUG, logging.INFO,
@@ -73,6 +72,12 @@ class LoggingMiddleware(MiddlewareMixin):
 
         self.logger = ColourLogger("cyan", "magenta") if enable_colorize else Logger()
         self.boundary = ''
+
+    def __call__(self, request):
+        self.process_request(request)
+        response = self.get_response(request)
+        self.process_response(request, response)
+        return response
 
     def process_request(self, request):
         method_path = "{} {}".format(request.method, request.get_full_path())

@@ -9,12 +9,12 @@ Plug django-request-logging into your Django project and you will have intuitive
 $ pip install django-request-logging
 ```
 
-Then add ```request_logging.middleware.LoggingMiddleware``` to your ```MIDDLEWARE_CLASSES```.
+Then add ```request_logging.middleware.LoggingMiddleware``` to your ```MIDDLEWARE```.
 
 For example:
 
 ```
-MIDDLEWARE_CLASSES = (
+MIDDLEWARE = (
     ...,
     'request_logging.middleware.LoggingMiddleware',
     ...,
