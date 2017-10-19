@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 import io
 import unittest
 
@@ -16,12 +17,12 @@ class BaseLogTestCase(unittest.TestCase):
     def _assert_logged(self, mock_log, expected_entry):
         calls = mock_log.log.call_args_list
         text = "".join([call[0][1] for call in calls])
-        self.assertTrue(expected_entry in text)
+        self.assertIn( expected_entry, text )
 
     def _assert_logged_with_level(self, mock_log, level):
         calls = mock_log.log.call_args_list
         called_levels = set(call[0][0] for call in calls)
-        self.assertTrue(level in called_levels, "{} not in {}".format(level, called_levels))
+        self.assertIn(level, called_levels, "{} not in {}".format(level, called_levels))
 
     def _asset_logged_with_additional_args_and_kwargs(self, mock_log, additional_args, kwargs):
         calls = mock_log.log.call_args_list
@@ -34,7 +35,7 @@ class BaseLogTestCase(unittest.TestCase):
     def _assert_not_logged(self, mock_log, unexpected_entry):
         calls = mock_log.log.call_args_list
         text = " ".join([call[0][1] for call in calls])
-        self.assertTrue(unexpected_entry not in text)
+        self.assertNotIn(unexpected_entry, text)
 
 
 @mock.patch.object(request_logging.middleware, "request_logger")
@@ -44,13 +45,13 @@ class LogTestCase(BaseLogTestCase):
         self.middleware = LoggingMiddleware()
 
     def test_request_body_logged(self, mock_log):
-        body = "some body"
+        body = u"some body"
         request = self.factory.post("/somewhere", data={"file": body})
         self.middleware.process_request(request)
         self._assert_logged(mock_log, body)
 
     def test_request_binary_logged(self, mock_log):
-        body = "some body"
+        body = u"some body"
         datafile = io.StringIO(body)
         request = self.factory.post("/somewhere", data={"file": datafile})
         self.middleware.process_request(request)
@@ -125,7 +126,7 @@ class LoggingContextTestCase(BaseLogTestCase):
 
 class BaseLogSettingsTestCase(BaseLogTestCase):
     def setUp(self):
-        body = "some body"
+        body = u"some body"
         datafile = io.StringIO(body)
         self.request = RequestFactory().post(
             "/somewhere",

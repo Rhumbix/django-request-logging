@@ -6,9 +6,10 @@ python:
   - 3.4
   - 3.5
   - 3.6
+  - 3.7-dev
 install:
   - pip install -r requirements-dev.txt
 script:
-  - coverage run --source=request_logging -m unittest
+  - coverage run --source=request_logging -m unittest tests
 after_success:
   - coverage report
