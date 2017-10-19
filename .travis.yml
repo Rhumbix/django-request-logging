@@ -9,6 +9,6 @@ python:
 install:
   - pip install -r requirements-dev.txt
 script:
-  - coverage run --source=request_logging -m unittest
+  - coverage run --source=request_logging -m unittest tests.py
 after_success:
   - coverage report
