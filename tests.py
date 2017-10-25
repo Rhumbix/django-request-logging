@@ -80,7 +80,7 @@ class LogTestCase(BaseLogTestCase):
         self._assert_logged(mock_log, "test_headers")
 
     def test_call_logged(self, mock_log):
-        body = "some body"
+        body = u"some body"
         request = self.factory.post("/somewhere", data={"file": body},
                                     **{'HTTP_USER_AGENT': 'silly-human'})
         self.middleware.__call__(request)
@@ -89,7 +89,7 @@ class LogTestCase(BaseLogTestCase):
         self._assert_logged(mock_log, "HTTP_USER_AGENT")
 
     def test_call_binary_logged(self, mock_log):
-        body = "some body"
+        body = u"some body"
         datafile = io.StringIO(body)
         request = self.factory.post("/somewhere", data={"file": datafile},
                                     **{'HTTP_USER_AGENT': 'silly-human'})
