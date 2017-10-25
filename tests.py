@@ -218,3 +218,8 @@ class LogSettingsMaxLengthTestCase(BaseLogTestCase):
     def test_invalid_max_body_length(self, mock_log):
         with self.assertRaises(ValueError):
             LoggingMiddleware()
+
+
+if __name__ == '__main__':
+    unittest.main()
+
