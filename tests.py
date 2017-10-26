@@ -43,7 +43,14 @@ class BaseLogTestCase(unittest.TestCase):
 class LogTestCase(BaseLogTestCase):
     def setUp(self):
         self.factory = RequestFactory()
-        self.middleware = LoggingMiddleware()
+        def get_response(request):
+            response = mock.MagicMock()
+            response.status_code = 200
+            response.get.return_value = 'application/json'
+            response._headers = {'test_headers': 'test_headers'}
+            return response
+
+        self.middleware = LoggingMiddleware(get_response)
 
     def test_request_body_logged(self, mock_log):
         body = u"some body"
@@ -71,6 +78,25 @@ class LogTestCase(BaseLogTestCase):
         response._headers = {'test_headers': 'test_headers'}
         self.middleware.process_response(request, response)
         self._assert_logged(mock_log, "test_headers")
+
+    def test_call_logged(self, mock_log):
+        body = u"some body"
+        request = self.factory.post("/somewhere", data={"file": body},
+                                    **{'HTTP_USER_AGENT': 'silly-human'})
+        self.middleware.__call__(request)
+        self._assert_logged(mock_log, body)
+        self._assert_logged(mock_log, "test_headers")
+        self._assert_logged(mock_log, "HTTP_USER_AGENT")
+
+    def test_call_binary_logged(self, mock_log):
+        body = u"some body"
+        datafile = io.StringIO(body)
+        request = self.factory.post("/somewhere", data={"file": datafile},
+                                    **{'HTTP_USER_AGENT': 'silly-human'})
+        self.middleware.__call__(request)
+        self._assert_logged(mock_log, "(binary data)")
+        self._assert_logged(mock_log, "test_headers")
+        self._assert_logged(mock_log, "HTTP_USER_AGENT")
 
 
 @mock.patch.object(request_logging.middleware, "request_logger")
@@ -218,3 +244,6 @@ class LogSettingsMaxLengthTestCase(BaseLogTestCase):
     def test_invalid_max_body_length(self, mock_log):
         with self.assertRaises(ValueError):
             LoggingMiddleware()
+
+if __name__ == '__main__':
+    unittest.main()
