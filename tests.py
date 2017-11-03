@@ -73,7 +73,7 @@ class LogTestCase(BaseLogTestCase):
         datafile = io.BytesIO(body)
         request = self.factory.post("/somewhere", data={"file": datafile})
         self.middleware.process_request(request)
-        self._assert_logged(mock_log, "(multipart/from)")
+        self._assert_logged(mock_log, "(multipart/form)")
 
     def test_request_headers_logged(self, mock_log):
         request = self.factory.post("/somewhere",
@@ -117,7 +117,7 @@ class LogTestCase(BaseLogTestCase):
         request = self.factory.post("/somewhere", data={"file": datafile},
                                     **{'HTTP_USER_AGENT': 'silly-human'})
         self.middleware.__call__(request)
-        self._assert_logged(mock_log, "(multipart/from)")
+        self._assert_logged(mock_log, "(multipart/form)")
         self._assert_logged(mock_log, "test_headers")
         self._assert_logged(mock_log, "HTTP_USER_AGENT")
 

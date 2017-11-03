@@ -150,7 +150,7 @@ class LoggingMiddleware(object):
 
                 self.logger.log(self.log_level, part, logging_context)
         except UnicodeDecodeError:
-            self.logger.log(self.log_level, "(multipart/from)", logging_context)
+            self.logger.log(self.log_level, "(multipart/form)", logging_context)
 
     def _log_resp(self, level, response, logging_context):
         if re.match('^application/json', response.get('Content-Type', ''), re.I):
