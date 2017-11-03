@@ -9,7 +9,7 @@ DEFAULT_COLORIZE = True
 DEFAULT_MAX_BODY_LENGTH = 50000  # log no more than 3k bytes of content
 SETTING_NAMES = {
     'log_level': 'REQUEST_LOGGING_DATA_LOG_LEVEL',
-    'colorize': 'REQUEST_LOGGING_DISABLE_COLORIZE',
+    'colorize': 'REQUEST_LOGGING_ENABLE_COLORIZE',
     'max_body_length': 'REQUEST_LOGGING_MAX_BODY_LENGTH'
 }
 BINARY_REGEX = re.compile(r'(.+Content-Type:.*?)(\S+)/(\S+)(?:\r\n)*(.+)', re.S | re.I)
