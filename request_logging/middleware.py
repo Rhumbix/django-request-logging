@@ -133,8 +133,14 @@ class LoggingMiddleware(object):
         Splits multipart body into parts separated by "boundary", then matches each part to BINARY_REGEX
         which searches for existance of "Content-Type" and capture of what type is this part.
         If it is an image or an application replace that content with "(binary data)" string.
+        This function will log "(multipart/form)" if body can't be decoded by utf-8.
         """
-        body_str = body if isinstance(body, str) else body.decode()
+        try:
+            body_str = body if isinstance(body, str) else body.decode()
+        except UnicodeDecodeError:
+            self.logger.log(self.log_level, "(multipart/form)", logging_context)
+            return
+
         parts = body_str.split(self.boundary)
         last = len(parts) - 1
         for i, part in enumerate(parts):
@@ -147,6 +153,7 @@ class LoggingMiddleware(object):
                 part = part + self.boundary
 
             self.logger.log(self.log_level, part, logging_context)
+
 
     def _log_resp(self, level, response, logging_context):
         if re.match('^application/json', response.get('Content-Type', ''), re.I):

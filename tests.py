@@ -5,6 +5,7 @@ import re
 
 import logging
 import mock
+import sys
 from django.conf import settings
 from django.test import RequestFactory, override_settings
 
@@ -65,6 +66,17 @@ class LogTestCase(BaseLogTestCase):
         self.middleware.process_request(request)
         self._assert_logged(mock_log, "(binary data)")
 
+    @unittest.skipIf(sys.version_info < (3, 0), "This issue won't happen on python 2")
+    def test_request_jpeg_logged(self, mock_log):
+        body = b'--BoUnDaRyStRiNg\r\nContent-Disposition: form-data; name="file"; filename="campaign_carousel_img.jp' \
+               b'g"\r\nContent-Type: image/jpeg\r\n\r\n\xff\xd8\xff\xe1\x00\x18Exif\x00\x00II*\x00\x08\x00\x00\x00' \
+               b'\x00\x00\x00\x00\x00\x00\x00\x00\xff\xec\x00\x11Ducky\x00\x01\x00\x04\x00\x00\x00d\x00\x00\xff\xe1' \
+               b'\x03{http://ns.adobe.com/'
+        datafile = io.BytesIO(body)
+        request = self.factory.post("/somewhere", data={"file": datafile})
+        self.middleware.process_request(request)
+        self._assert_logged(mock_log, "(multipart/form)")
+
     def test_request_headers_logged(self, mock_log):
         request = self.factory.post("/somewhere",
                                     **{'HTTP_USER_AGENT': 'silly-human'})
@@ -95,6 +107,20 @@ class LogTestCase(BaseLogTestCase):
                                     **{'HTTP_USER_AGENT': 'silly-human'})
         self.middleware.__call__(request)
         self._assert_logged(mock_log, "(binary data)")
+        self._assert_logged(mock_log, "test_headers")
+        self._assert_logged(mock_log, "HTTP_USER_AGENT")
+
+    @unittest.skipIf(sys.version_info < (3, 0), "This issue won't happen on python 2")
+    def test_call_jpeg_logged(self, mock_log):
+        body = b'--BoUnDaRyStRiNg\r\nContent-Disposition: form-data; name="file"; filename="campaign_carousel_img.jp' \
+               b'g"\r\nContent-Type: image/jpeg\r\n\r\n\xff\xd8\xff\xe1\x00\x18Exif\x00\x00II*\x00\x08\x00\x00\x00' \
+               b'\x00\x00\x00\x00\x00\x00\x00\x00\xff\xec\x00\x11Ducky\x00\x01\x00\x04\x00\x00\x00d\x00\x00\xff\xe1' \
+               b'\x03{http://ns.adobe.com/'
+        datafile = io.BytesIO(body)
+        request = self.factory.post("/somewhere", data={"file": datafile},
+                                    **{'HTTP_USER_AGENT': 'silly-human'})
+        self.middleware.__call__(request)
+        self._assert_logged(mock_log, "(multipart/form)")
         self._assert_logged(mock_log, "test_headers")
         self._assert_logged(mock_log, "HTTP_USER_AGENT")
 
