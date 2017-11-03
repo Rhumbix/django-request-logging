@@ -137,20 +137,23 @@ class LoggingMiddleware(object):
         """
         try:
             body_str = body if isinstance(body, str) else body.decode()
-            parts = body_str.split(self.boundary)
-            last = len(parts) - 1
-            for i, part in enumerate(parts):
-                if 'Content-Type:' in part:
-                    match = BINARY_REGEX.search(part)
-                    if match and match.group(2) in BINARY_TYPES and not match.group(4) in ('', '\r\n'):
-                        part = match.expand(r'\1\2/\3\r\n\r\n(binary data)\r\n')
-
-                if i != last:
-                    part = part + self.boundary
-
-                self.logger.log(self.log_level, part, logging_context)
         except UnicodeDecodeError:
             self.logger.log(self.log_level, "(multipart/form)", logging_context)
+            return
+
+        parts = body_str.split(self.boundary)
+        last = len(parts) - 1
+        for i, part in enumerate(parts):
+            if 'Content-Type:' in part:
+                match = BINARY_REGEX.search(part)
+                if match and match.group(2) in BINARY_TYPES and not match.group(4) in ('', '\r\n'):
+                    part = match.expand(r'\1\2/\3\r\n\r\n(binary data)\r\n')
+
+            if i != last:
+                part = part + self.boundary
+
+            self.logger.log(self.log_level, part, logging_context)
+
 
     def _log_resp(self, level, response, logging_context):
         if re.match('^application/json', response.get('Content-Type', ''), re.I):
