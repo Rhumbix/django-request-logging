@@ -199,12 +199,6 @@ class LogSettingsColorizeTestCase(BaseLogSettingsTestCase):
         with self.assertRaises(ValueError):
             LoggingMiddleware()
 
-    @override_settings(REQUEST_LOGGING_ENABLE_COLORIZE=False)
-    def test_disable_colorize(self, mock_log):
-        middleware = LoggingMiddleware()
-        middleware.process_request(self.request)
-        self.assertFalse(self._is_log_colorized(mock_log))
-
     def _is_log_colorized(self, mock_log):
         reset_code = '\x1b[0m'
         calls = mock_log.log.call_args_list
