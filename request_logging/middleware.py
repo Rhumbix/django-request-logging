@@ -3,6 +3,7 @@ import re
 
 from django.conf import settings
 from django.utils.termcolors import colorize
+from django.core.urlresolvers import resolve
 
 DEFAULT_LOG_LEVEL = logging.DEBUG
 DEFAULT_COLORIZE = True
@@ -14,6 +15,8 @@ SETTING_NAMES = {
 }
 BINARY_REGEX = re.compile(r'(.+Content-Type:.*?)(\S+)/(\S+)(?:\r\n)*(.+)', re.S | re.I)
 BINARY_TYPES = ('image', 'application')
+NO_LOGGING_ATTR = 'no_logging'
+NO_LOGGING_MSG = 'No logging for this endpoint'
 request_logger = logging.getLogger('django.request')
 
 
@@ -84,6 +87,25 @@ class LoggingMiddleware(object):
         logging_context = self._get_logging_context(request, None)
         self.logger.log(logging.INFO, method_path, logging_context)
 
+        no_logging = None
+        try:
+            route_match = resolve(request.path)
+            method = request.method.lower()
+            view = route_match.func
+            func = view
+            # This is for "django rest framework"
+            if hasattr(view, 'cls'):
+                if hasattr(view, 'actions'):
+                    func = getattr(view.cls, view.actions[method], None)
+                else:
+                    func = getattr(view.cls, method, None)
+            elif hasattr(view, 'view_class'):
+                # This is for django class-based views
+                func = getattr(view.view_class, method, None)
+            no_logging = getattr(func, NO_LOGGING_ATTR, None)
+        except:
+            pass
+
         content_type = request.META.get('CONTENT_TYPE', '')
         is_multipart = content_type.startswith('multipart/form-data')
         if is_multipart:
@@ -94,10 +116,13 @@ class LoggingMiddleware(object):
         if headers:
             self.logger.log(self.log_level, headers, logging_context)
         if request.body:
-            if is_multipart:
-                self._log_multipart(self._chunked_to_max(request.body), logging_context)
+            if no_logging is not None:
+                self.logger.log(self.log_level, no_logging, logging_context)
             else:
-                self.logger.log(self.log_level, self._chunked_to_max(request.body), logging_context)
+                if is_multipart:
+                    self._log_multipart(self._chunked_to_max(request.body), logging_context)
+                else:
+                    self.logger.log(self.log_level, self._chunked_to_max(request.body), logging_context)
 
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)

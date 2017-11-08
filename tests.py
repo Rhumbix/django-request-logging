@@ -10,7 +10,8 @@ from django.conf import settings
 from django.test import RequestFactory, override_settings
 
 import request_logging
-from request_logging.middleware import LoggingMiddleware, DEFAULT_LOG_LEVEL, DEFAULT_COLORIZE, DEFAULT_MAX_BODY_LENGTH
+from request_logging.middleware import LoggingMiddleware, DEFAULT_LOG_LEVEL, DEFAULT_COLORIZE, DEFAULT_MAX_BODY_LENGTH,\
+    NO_LOGGING_MSG
 
 settings.configure()
 
@@ -270,6 +271,38 @@ class LogSettingsMaxLengthTestCase(BaseLogTestCase):
     def test_invalid_max_body_length(self, mock_log):
         with self.assertRaises(ValueError):
             LoggingMiddleware()
+
+
+@mock.patch.object(request_logging.middleware, "request_logger")
+class DecoratorTestCase(BaseLogTestCase):
+    def setUp(self):
+        from django.urls import set_urlconf
+        set_urlconf('test_urls')
+        self.factory = RequestFactory()
+        self.middleware = LoggingMiddleware()
+
+    def test_no_logging_decorator_class_view(self, mock_log):
+        body = u"some super secret body"
+        request = self.factory.post("/test_class", data={"file": body})
+        self.middleware.process_request(request)
+        self._assert_not_logged(mock_log, body)
+        self._assert_logged(mock_log, NO_LOGGING_MSG)
+
+    def test_no_logging_decorator_func_view(self, mock_log):
+        body = u"some super secret body"
+        request = self.factory.post("/test_func", data={"file": body})
+        self.middleware.process_request(request)
+        self._assert_not_logged(mock_log, body)
+        self._assert_logged(mock_log, NO_LOGGING_MSG)
+
+    def test_no_logging_decorator_custom_msg(self, mock_log):
+        body = u"some super secret body"
+        request = self.factory.post("/test_msg", data={"file": body})
+        self.middleware.process_request(request)
+        self._assert_not_logged(mock_log, body)
+        self._assert_not_logged(mock_log, NO_LOGGING_MSG)
+        self._assert_logged(mock_log, 'Custom message')
+
 
 if __name__ == '__main__':
     unittest.main()
