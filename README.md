@@ -56,6 +56,9 @@ You can customized some behaves of django-request-logging by following settings 
 By default, data will log in DEBUG level, you can change to other valid level (Ex. logging.INFO) if need.
 ### REQUEST_LOGGING_ENABLE_COLORIZE
 If you want to log into log file instead of console, you may want to remove ANSI color. You can set `REQUEST_LOGGING_ENABLE_COLORIZE=False` to disable colorize.
+### REQUEST_LOGGING_DISABLE_COLORIZE (Deprecated)
+This legacy setting will still available, but you should't use this setting anymore. You should use `REQUEST_LOGGING_ENABLE_COLORIZE` instead.
+We keep this settings for backward compatibility. 
 ### REQUEST_LOGGING_MAX_BODY_LENGTH
 By default, max length of a request body and a response content is cut to 50000 characters.
 

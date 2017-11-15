@@ -10,6 +10,7 @@ DEFAULT_COLORIZE = True
 DEFAULT_MAX_BODY_LENGTH = 50000  # log no more than 3k bytes of content
 SETTING_NAMES = {
     'log_level': 'REQUEST_LOGGING_DATA_LOG_LEVEL',
+    'legacy_colorize': 'REQUEST_LOGGING_DISABLE_COLORIZE',
     'colorize': 'REQUEST_LOGGING_ENABLE_COLORIZE',
     'max_body_length': 'REQUEST_LOGGING_MAX_BODY_LENGTH'
 }
@@ -61,7 +62,11 @@ class LoggingMiddleware(object):
                                   logging.WARNING, logging.ERROR, logging.CRITICAL]:
             raise ValueError("Unknown log level({}) in setting({})".format(self.log_level, SETTING_NAMES['log_level']))
 
-        enable_colorize = getattr(settings, SETTING_NAMES['colorize'], DEFAULT_COLORIZE)
+        # TODO: remove deprecated legacy settings
+        enable_colorize = getattr(settings, SETTING_NAMES['legacy_colorize'], None)
+        if enable_colorize is None:
+            enable_colorize = getattr(settings, SETTING_NAMES['colorize'], DEFAULT_COLORIZE)
+
         if not isinstance(enable_colorize, bool):
             raise ValueError(
                 "{} should be boolean. {} is not boolean.".format(SETTING_NAMES['colorize'], enable_colorize)
@@ -178,7 +183,6 @@ class LoggingMiddleware(object):
                 part = part + self.boundary
 
             self.logger.log(self.log_level, part, logging_context)
-
 
     def _log_resp(self, level, response, logging_context):
         if re.match('^application/json', response.get('Content-Type', ''), re.I):
