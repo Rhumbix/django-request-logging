@@ -215,19 +215,25 @@ class LogSettingsColorizeTestCase(BaseLogSettingsTestCase):
         middleware.process_request(self.request)
         self.assertEqual(DEFAULT_COLORIZE, self._is_log_colorized(mock_log))
 
-    @override_settings(REQUEST_LOGGING_DISABLE_COLORIZE=False)
+    @override_settings(REQUEST_LOGGING_ENABLE_COLORIZE=False)
     def test_disable_colorize(self, mock_log):
         middleware = LoggingMiddleware()
         middleware.process_request(self.request)
         self.assertFalse(self._is_log_colorized(mock_log))
 
-    @override_settings(REQUEST_LOGGING_DISABLE_COLORIZE='Not a boolean')
+    @override_settings(REQUEST_LOGGING_ENABLE_COLORIZE='Not a boolean')
     def test_invalid_colorize(self, mock_log):
         with self.assertRaises(ValueError):
             LoggingMiddleware()
 
     @override_settings(REQUEST_LOGGING_DISABLE_COLORIZE=False)
-    def test_disable_colorize(self, mock_log):
+    def test_legacy_settings(self, mock_log):
+        middleware = LoggingMiddleware()
+        middleware.process_request(self.request)
+        self.assertFalse(self._is_log_colorized(mock_log))
+
+    @override_settings(REQUEST_LOGGING_DISABLE_COLORIZE=False, REQUEST_LOGGING_ENABLE_COLORIZE=True)
+    def test_legacy_settings_taking_precedence(self, mock_log):
         middleware = LoggingMiddleware()
         middleware.process_request(self.request)
         self.assertFalse(self._is_log_colorized(mock_log))
@@ -241,7 +247,7 @@ class LogSettingsColorizeTestCase(BaseLogSettingsTestCase):
 
 @mock.patch.object(request_logging.middleware, "request_logger")
 class LogSettingsMaxLengthTestCase(BaseLogTestCase):
-    @override_settings(REQUEST_LOGGING_DISABLE_COLORIZE=False)
+    @override_settings(REQUEST_LOGGING_ENABLE_COLORIZE=False)
     def test_default_max_body_length(self, mock_log):
         factory = RequestFactory()
         middleware = LoggingMiddleware()
@@ -254,7 +260,7 @@ class LogSettingsMaxLengthTestCase(BaseLogTestCase):
         self._assert_logged(mock_log, re.sub(r'\r?\n', '', request_body_str[:DEFAULT_MAX_BODY_LENGTH]))
         self._assert_not_logged(mock_log, body)
 
-    @override_settings(REQUEST_LOGGING_MAX_BODY_LENGTH=150, REQUEST_LOGGING_DISABLE_COLORIZE=False)
+    @override_settings(REQUEST_LOGGING_MAX_BODY_LENGTH=150, REQUEST_LOGGING_ENABLE_COLORIZE=False)
     def test_customized_max_body_length(self, mock_log):
         factory = RequestFactory()
         middleware = LoggingMiddleware()
