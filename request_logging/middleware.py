@@ -92,6 +92,12 @@ class LoggingMiddleware(object):
         logging_context = self._get_logging_context(request, None)
         self.logger.log(logging.INFO, method_path, logging_context)
 
+        no_logging = self._should_log_route(request)
+
+        self._log_request_headers(request, no_logging, logging_context)
+        self._log_request_body(request, no_logging, logging_context)
+
+    def _should_log_route(self, request):
         no_logging = None
         try:
             route_match = resolve(request.path)
@@ -110,20 +116,24 @@ class LoggingMiddleware(object):
             no_logging = getattr(func, NO_LOGGING_ATTR, None)
         except:
             pass
+        return no_logging
 
-        content_type = request.META.get('CONTENT_TYPE', '')
-        is_multipart = content_type.startswith('multipart/form-data')
-        if is_multipart:
-            self.boundary = '--' + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
+    def _log_request_headers(self, request, no_logging, logging_context):
+        if no_logging is not None:
+            headers = {k: v for k, v in request.META.items() if k.startswith('HTTP_')}
 
-        headers = {k: v for k, v in request.META.items() if k.startswith('HTTP_')}
+            if headers:
+                self.logger.log(self.log_level, headers, logging_context)
 
-        if headers:
-            self.logger.log(self.log_level, headers, logging_context)
+    def _log_request_body(self, request, no_logging, logging_context):
         if request.body:
             if no_logging is not None:
                 self.logger.log(self.log_level, no_logging, logging_context)
             else:
+                content_type = request.META.get('CONTENT_TYPE', '')
+                is_multipart = content_type.startswith('multipart/form-data')
+                if is_multipart:
+                    self.boundary = '--' + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
                 if is_multipart:
                     self._log_multipart(self._chunked_to_max(request.body), logging_context)
                 else:
