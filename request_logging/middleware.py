@@ -119,11 +119,10 @@ class LoggingMiddleware(object):
         return no_logging
 
     def _log_request_headers(self, request, no_logging, logging_context):
-        if no_logging is not None:
-            headers = {k: v for k, v in request.META.items() if k.startswith('HTTP_')}
+        headers = {k: v for k, v in request.META.items() if k.startswith('HTTP_')}
 
-            if headers:
-                self.logger.log(self.log_level, headers, logging_context)
+        if headers:
+            self.logger.log(self.log_level, headers, logging_context)
 
     def _log_request_body(self, request, no_logging, logging_context):
         if request.body:
