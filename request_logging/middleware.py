@@ -3,7 +3,12 @@ import re
 
 from django.conf import settings
 from django.utils.termcolors import colorize
-from django.core.urlresolvers import resolve
+try:
+    # Django 1.x
+    from django.core.urlresolvers import resolve
+except ImportError:
+    # Django 2.x
+    from django.urls import resolve
 
 DEFAULT_LOG_LEVEL = logging.DEBUG
 DEFAULT_COLORIZE = True
