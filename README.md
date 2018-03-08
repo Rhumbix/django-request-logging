@@ -13,7 +13,7 @@ Then add ```request_logging.middleware.LoggingMiddleware``` to your ```MIDDLEWAR
 
 For example:
 
-```
+```python
 MIDDLEWARE = (
     ...,
     'request_logging.middleware.LoggingMiddleware',
@@ -23,7 +23,7 @@ MIDDLEWARE = (
 
 And configure logging in your app:
 
-```
+```python
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
