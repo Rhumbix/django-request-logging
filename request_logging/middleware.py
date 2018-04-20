@@ -87,36 +87,40 @@ class LoggingMiddleware(object):
         self.boundary = ''
 
     def __call__(self, request):
-        skip_loggin_because = self.process_request(request)
+        skip_logging_because = self._should_log_route(request)
+        if skip_logging_because:
+            return self._skip_logging(request, skip_logging_because)
+        else:
+            return self._log_cycle(request)
+
+    def _skip_logging(self, request, reason):
+        method_path = "{} {}".format(request.method, request.get_full_path())
+        no_log_context = {
+            'args': (),
+            'kwargs': {
+                'extra': {
+                    'no_logging': reason
+                },
+            },
+        }
+        self.logger.log(logging.INFO, method_path + " (not logged because %s)" % reason, no_log_context)
+
+    def _log_cycle(self, request):
+        self.process_request(request)
         response = self.get_response(request)
-        if skip_loggin_because is None:
-            self.process_response(request, response)
+        self.process_response(request, response)
         return response
 
     def process_request(self, request):
         method_path = "{} {}".format(request.method, request.get_full_path())
         no_logging = self._should_log_route(request)
 
-        if no_logging:
-            no_log_context = {
-                'args': (),
-                'kwargs': {
-                    'extra': {
-                        'no_logging': no_logging
-                    },
-                },
-            }
-            self.logger.log(logging.INFO, method_path + " (not logged because %s)" % no_logging, no_log_context )
-            pass
-        else:
-            logging_context = self._get_logging_context(request, None)
-            self.logger.log(logging.INFO, method_path, logging_context)
-            self._log_request_headers(request, no_logging, logging_context)
-            self._log_request_body(request, no_logging, logging_context)
-        return no_logging
+        logging_context = self._get_logging_context(request, None)
+        self.logger.log(logging.INFO, method_path, logging_context)
+        self._log_request_headers(request, no_logging, logging_context)
+        self._log_request_body(request, no_logging, logging_context)
 
     def _should_log_route(self, request):
-        no_logging = None
         try:
             route_match = resolve(request.path)
         except:

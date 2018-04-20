@@ -329,7 +329,6 @@ class DecoratorTestCase(BaseLogTestCase):
         self._assert_not_logged(mock_log, NO_LOGGING_MSG)
         self._assert_logged(mock_log, 'Custom message')
 
-
     def test_no_logging_empty_response_body(self, mock_log):
         body = u"our work of art"
         request = self.factory.post("/dont_log_empty_response_body", data={"file": body})
@@ -338,6 +337,18 @@ class DecoratorTestCase(BaseLogTestCase):
         self._assert_not_logged(mock_log, NO_LOGGING_MSG)
         self._assert_logged(mock_log, 'Empty response body')
 
+    def test_still_logs_verb(self, mock_log):
+        body = u"our work of art"
+        request = self.factory.post("/dont_log_empty_response_body", data={"file": body})
+        self.middleware.process_request(request)
+        self._assert_logged(mock_log, 'POST')
+
+    def test_still_logs_path(self, mock_log):
+        body = u"our work of art"
+        uri = "/dont_log_empty_response_body"
+        request = self.factory.post(uri, data={"file": body})
+        self.middleware.process_request(request)
+        self._assert_logged(mock_log, uri)
 
 if __name__ == '__main__':
     unittest.main()
