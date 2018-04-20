@@ -42,6 +42,26 @@ class BaseLogTestCase(unittest.TestCase):
 
 
 @mock.patch.object(request_logging.middleware, "request_logger")
+class MissingRoutes(BaseLogTestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+        def get_response(request):
+            response = mock.MagicMock()
+            response.status_code = 200
+            response.get.return_value = 'application/json'
+            response._headers = {'test_headers': 'test_headers'}
+            return response
+
+        self.middleware = LoggingMiddleware(get_response)
+
+    def test_no_exception_risen(self, mock_log):
+        body = u"some body"
+        request = self.factory.post("/a-missing-route-somewhere", data={"file": body})
+        self.middleware.process_request(request)
+        self._assert_logged(mock_log, body)
+
+
+@mock.patch.object(request_logging.middleware, "request_logger")
 class LogTestCase(BaseLogTestCase):
     def setUp(self):
         self.factory = RequestFactory()
