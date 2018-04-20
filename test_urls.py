@@ -12,12 +12,12 @@ class TestView(View):
 
 @no_logging()
 def view_func(request):
-    return HttpResponse(status=200)
+    return HttpResponse(status=200, "view_func with no logging")
 
 
 @no_logging('Custom message')
 def view_msg(request):
-    return HttpResponse(status=200)
+    return HttpResponse(status=200, "view_msg with no logging with a custom reason why")
 
 
 urlpatterns = [
