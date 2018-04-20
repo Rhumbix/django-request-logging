@@ -20,8 +20,14 @@ def view_msg(request):
     return HttpResponse(status=200, "view_msg with no logging with a custom reason why")
 
 
+@no_logging('Empty response body')
+def dont_log_empty_response_body(request):
+    return HttpResponse(status=201)
+
+
 urlpatterns = [
     url(r'^test_class$', TestView.as_view()),
     url(r'^test_func$', view_func),
     url(r'^test_msg$', view_msg),
+    url(r'^dont_log_empty_response_body', dont_log_empty_response_body),
 ]
