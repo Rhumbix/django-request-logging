@@ -103,7 +103,7 @@ class LoggingMiddleware(object):
                 },
             },
         }
-        self.logger.log(logging.INFO, method_path + " (not logged because %s)" % reason, no_log_context)
+        self.logger.info("{} {} (reason: {})", request.method, request.get_full_path(), reason)
 
     def _log_cycle(self, request):
         self.process_request(request)
