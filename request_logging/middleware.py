@@ -94,15 +94,6 @@ class LoggingMiddleware(object):
             return self._log_cycle(request)
 
     def _skip_logging(self, request, reason):
-        method_path = "{} {}".format(request.method, request.get_full_path())
-        no_log_context = {
-            'args': (),
-            'kwargs': {
-                'extra': {
-                    'no_logging': reason
-                },
-            },
-        }
         self.logger.info("{} {} (reason: {})", request.method, request.get_full_path(), reason)
 
     def _log_cycle(self, request):
