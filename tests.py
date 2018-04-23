@@ -42,6 +42,26 @@ class BaseLogTestCase(unittest.TestCase):
 
 
 @mock.patch.object(request_logging.middleware, "request_logger")
+class MissingRoutes(BaseLogTestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+        def get_response(request):
+            response = mock.MagicMock()
+            response.status_code = 200
+            response.get.return_value = 'application/json'
+            response._headers = {'test_headers': 'test_headers'}
+            return response
+
+        self.middleware = LoggingMiddleware(get_response)
+
+    def test_no_exception_risen(self, mock_log):
+        body = u"some body"
+        request = self.factory.post("/a-missing-route-somewhere", data={"file": body})
+        self.middleware.process_request(request)
+        self._assert_logged(mock_log, body)
+
+
+@mock.patch.object(request_logging.middleware, "request_logger")
 class LogTestCase(BaseLogTestCase):
     def setUp(self):
         self.factory = RequestFactory()
@@ -309,6 +329,26 @@ class DecoratorTestCase(BaseLogTestCase):
         self._assert_not_logged(mock_log, NO_LOGGING_MSG)
         self._assert_logged(mock_log, 'Custom message')
 
+    def test_no_logging_empty_response_body(self, mock_log):
+        body = u"our work of art"
+        request = self.factory.post("/dont_log_empty_response_body", data={"file": body})
+        self.middleware.process_request(request)
+        self._assert_not_logged(mock_log, body)
+        self._assert_not_logged(mock_log, NO_LOGGING_MSG)
+        self._assert_logged(mock_log, 'Empty response body')
+
+    def test_still_logs_verb(self, mock_log):
+        body = u"our work of art"
+        request = self.factory.post("/dont_log_empty_response_body", data={"file": body})
+        self.middleware.process_request(request)
+        self._assert_logged(mock_log, 'POST')
+
+    def test_still_logs_path(self, mock_log):
+        body = u"our work of art"
+        uri = "/dont_log_empty_response_body"
+        request = self.factory.post(uri, data={"file": body})
+        self.middleware.process_request(request)
+        self._assert_logged(mock_log, uri)
 
 if __name__ == '__main__':
     unittest.main()

@@ -87,6 +87,25 @@ class LoggingMiddleware(object):
         self.boundary = ''
 
     def __call__(self, request):
+        skip_logging_because = self._should_log_route(request)
+        if skip_logging_because:
+            return self._skip_logging(request, skip_logging_because)
+        else:
+            return self._log_cycle(request)
+
+    def _skip_logging(self, request, reason):
+        method_path = "{} {}".format(request.method, request.get_full_path())
+        no_log_context = {
+            'args': (),
+            'kwargs': {
+                'extra': {
+                    'no_logging': reason
+                },
+            },
+        }
+        self.logger.info("{} {} (reason: {})", request.method, request.get_full_path(), reason)
+
+    def _log_cycle(self, request):
         self.process_request(request)
         response = self.get_response(request)
         self.process_response(request, response)
@@ -94,33 +113,32 @@ class LoggingMiddleware(object):
 
     def process_request(self, request):
         method_path = "{} {}".format(request.method, request.get_full_path())
-        logging_context = self._get_logging_context(request, None)
-        self.logger.log(logging.INFO, method_path, logging_context)
-
         no_logging = self._should_log_route(request)
 
+        logging_context = self._get_logging_context(request, None)
+        self.logger.log(logging.INFO, method_path, logging_context)
         self._log_request_headers(request, no_logging, logging_context)
         self._log_request_body(request, no_logging, logging_context)
 
     def _should_log_route(self, request):
-        no_logging = None
         try:
             route_match = resolve(request.path)
-            method = request.method.lower()
-            view = route_match.func
-            func = view
-            # This is for "django rest framework"
-            if hasattr(view, 'cls'):
-                if hasattr(view, 'actions'):
-                    func = getattr(view.cls, view.actions[method], None)
-                else:
-                    func = getattr(view.cls, method, None)
-            elif hasattr(view, 'view_class'):
-                # This is for django class-based views
-                func = getattr(view.view_class, method, None)
-            no_logging = getattr(func, NO_LOGGING_ATTR, None)
         except:
-            pass
+            return None
+
+        method = request.method.lower()
+        view = route_match.func
+        func = view
+        # This is for "django rest framework"
+        if hasattr(view, 'cls'):
+            if hasattr(view, 'actions'):
+                func = getattr(view.cls, view.actions[method], None)
+            else:
+                func = getattr(view.cls, method, None)
+        elif hasattr(view, 'view_class'):
+            # This is for django class-based views
+            func = getattr(view.view_class, method, None)
+        no_logging = getattr(func, NO_LOGGING_ATTR, None)
         return no_logging
 
     def _log_request_headers(self, request, no_logging, logging_context):

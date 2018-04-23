@@ -1,11 +1,11 @@
 from setuptools import setup
 
 setup(name='django-request-logging',
-      version='0.5.5',
+      version='0.6.0',
       description='Django middleware that logs http request body.',
       url='https://github.com/Rhumbix/django-request-logging.git',
-      author='Kenneth Jiang',
-      author_email='kenneth@rhumbix.com',
+      author='Rhumbix',
+      author_email='devteam@rhumbix.com',
       license='MIT',
       packages=['request_logging'],
       install_requires=[
