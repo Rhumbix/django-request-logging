@@ -1,4 +1,4 @@
-from django.conf.urls import url, include
+from django.conf.urls import url
 from django.http import HttpResponse
 from django.views import View
 from request_logging.decorators import no_logging
