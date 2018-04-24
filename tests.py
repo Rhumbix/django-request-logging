@@ -350,5 +350,34 @@ class DecoratorTestCase(BaseLogTestCase):
         self.middleware.process_request(request)
         self._assert_logged(mock_log, uri)
 
+
+@mock.patch.object(request_logging.middleware, "request_logger")
+class DRFTestCase(BaseLogTestCase):
+    def setUp(self):
+        from django.urls import set_urlconf
+        set_urlconf('test_urls')
+        self.factory = RequestFactory()
+        self.middleware = LoggingMiddleware()
+
+    def test_no_request_logging_is_honored(self, mock_log):
+        uri = "/widgets"
+        request = self.factory.get(uri)
+        self.middleware.process_request(request)
+        self._assert_logged(mock_log, "DRF explicit annotation")
+
+    def test_no_response_logging_is_honored(self, mock_log):
+        uri = "/widgets"
+        request = self.factory.get(uri)
+        self.middleware.process_request(request)
+        self._assert_not_logged(mock_log, "Unannotated")
+
+    def test_non_existent_drf_route_logs(self, mock_log):
+        uri = "/widgets/1234"
+        request = self.factory.post(uri, data={"test": "that amorea"})
+        self.middleware.process_request(request)
+        self._assert_logged(mock_log, "that amorea")
+
+
+
 if __name__ == '__main__':
     unittest.main()

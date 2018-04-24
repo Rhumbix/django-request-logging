@@ -87,38 +87,17 @@ class LoggingMiddleware(object):
         self.boundary = ''
 
     def __call__(self, request):
-        skip_logging_because = self._should_log_route(request)
-        if skip_logging_because:
-            return self._skip_logging(request, skip_logging_because)
-        else:
-            return self._log_cycle(request)
-
-    def _skip_logging(self, request, reason):
-        method_path = "{} {}".format(request.method, request.get_full_path())
-        no_log_context = {
-            'args': (),
-            'kwargs': {
-                'extra': {
-                    'no_logging': reason
-                },
-            },
-        }
-        self.logger.info("{} {} (reason: {})", request.method, request.get_full_path(), reason)
-
-    def _log_cycle(self, request):
-        self.process_request(request)
-        response = self.get_response(request)
-        self.process_response(request, response)
+        self.process_request( request )
+        response = self.get_response( request )
+        self.process_response( request, response )
         return response
 
     def process_request(self, request):
-        method_path = "{} {}".format(request.method, request.get_full_path())
-        no_logging = self._should_log_route(request)
-
-        logging_context = self._get_logging_context(request, None)
-        self.logger.log(logging.INFO, method_path, logging_context)
-        self._log_request_headers(request, no_logging, logging_context)
-        self._log_request_body(request, no_logging, logging_context)
+        skip_logging_because = self._should_log_route(request)
+        if skip_logging_because:
+            return self._skip_logging_request(request, skip_logging_because)
+        else:
+            return self._log_request(request)
 
     def _should_log_route(self, request):
         try:
@@ -132,7 +111,9 @@ class LoggingMiddleware(object):
         # This is for "django rest framework"
         if hasattr(view, 'cls'):
             if hasattr(view, 'actions'):
-                func = getattr(view.cls, view.actions[method], None)
+                actions = view.actions
+                if hasattr(actions, method):
+                    func = getattr(view.cls, view.actions[method], None)
             else:
                 func = getattr(view.cls, method, None)
         elif hasattr(view, 'view_class'):
@@ -141,25 +122,42 @@ class LoggingMiddleware(object):
         no_logging = getattr(func, NO_LOGGING_ATTR, None)
         return no_logging
 
-    def _log_request_headers(self, request, no_logging, logging_context):
+    def _skip_logging_request(self, request, reason):
+        method_path = "{} {}".format(request.method, request.get_full_path())
+        no_log_context = {
+            'args': (),
+            'kwargs': {
+                'extra': {
+                    'no_logging': reason
+                },
+            },
+        }
+        self.logger.log(logging.INFO, method_path + " (not logged because '" + reason + "')", no_log_context)
+
+    def _log_request(self, request):
+        method_path = "{} {}".format(request.method, request.get_full_path())
+
+        logging_context = self._get_logging_context(request, None)
+        self.logger.log(logging.INFO, method_path, logging_context)
+        self._log_request_headers(request, logging_context)
+        self._log_request_body(request, logging_context)
+
+    def _log_request_headers(self, request, logging_context):
         headers = {k: v for k, v in request.META.items() if k.startswith('HTTP_')}
 
         if headers:
             self.logger.log(self.log_level, headers, logging_context)
 
-    def _log_request_body(self, request, no_logging, logging_context):
+    def _log_request_body(self, request, logging_context):
         if request.body:
-            if no_logging is not None:
-                self.logger.log(self.log_level, no_logging, logging_context)
+            content_type = request.META.get('CONTENT_TYPE', '')
+            is_multipart = content_type.startswith('multipart/form-data')
+            if is_multipart:
+                self.boundary = '--' + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
+            if is_multipart:
+                self._log_multipart(self._chunked_to_max(request.body), logging_context)
             else:
-                content_type = request.META.get('CONTENT_TYPE', '')
-                is_multipart = content_type.startswith('multipart/form-data')
-                if is_multipart:
-                    self.boundary = '--' + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
-                if is_multipart:
-                    self._log_multipart(self._chunked_to_max(request.body), logging_context)
-                else:
-                    self.logger.log(self.log_level, self._chunked_to_max(request.body), logging_context)
+                self.logger.log(self.log_level, self._chunked_to_max(request.body), logging_context)
 
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
@@ -178,7 +176,6 @@ class LoggingMiddleware(object):
         """
         Returns a map with args and kwargs to provide additional context to calls to logging.log().
         This allows the logging context to be created per process request/response call.
-
         """
         return {
             'args': (),
