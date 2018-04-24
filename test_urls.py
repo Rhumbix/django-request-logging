@@ -1,13 +1,19 @@
-from django.conf.urls import url
+from django.conf.urls import url, include
 from django.http import HttpResponse
 from django.views import View
 from request_logging.decorators import no_logging
+from rest_framework import (viewsets, mixins)
+from rest_framework import routers
 
 
 def general_resource(request):
     return HttpResponse(status=200, body='Generic repsonse entity')
 
+
 class TestView(View):
+    def get(self):
+        return HttpResponse(status=200)
+
     @no_logging()
     def post(self, request):
         return HttpResponse(status=200)
@@ -28,10 +34,18 @@ def dont_log_empty_response_body(request):
     return HttpResponse(status=201)
 
 
+class UnannotatedDRF(viewsets.ReadOnlyModelViewSet):
+    @no_logging("DRF explicit annotation")
+    def list(self, request):
+        return HttpResponse(status=200, body="DRF Unannotated")
+
+router = routers.SimpleRouter(trailing_slash=False)
+router.register(r"widgets", UnannotatedDRF, base_name="widget")
+
 urlpatterns = [
     url(r'^somewhere$', general_resource),
     url(r'^test_class$', TestView.as_view()),
     url(r'^test_func$', view_func),
     url(r'^test_msg$', view_msg),
-    url(r'^dont_log_empty_response_body', dont_log_empty_response_body),
-]
+    url(r'^dont_log_empty_response_body$', dont_log_empty_response_body),
+] + router.urls
