@@ -38,6 +38,7 @@ class UnannotatedDRF(viewsets.ReadOnlyModelViewSet):
     def list(self, request):
         return HttpResponse(status=200, body="DRF Unannotated")
 
+
 router = routers.SimpleRouter(trailing_slash=False)
 router.register(r"widgets", UnannotatedDRF, base_name="widget")
 
