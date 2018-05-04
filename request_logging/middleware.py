@@ -3,14 +3,20 @@ import re
 
 from django.conf import settings
 from django.utils.termcolors import colorize
-from django.core.urlresolvers import resolve
+try:
+    # Django 1.x
+    from django.core.urlresolvers import resolve
+except ImportError:
+    # Django 2.x
+    from django.urls import resolve
 
 DEFAULT_LOG_LEVEL = logging.DEBUG
 DEFAULT_COLORIZE = True
 DEFAULT_MAX_BODY_LENGTH = 50000  # log no more than 3k bytes of content
 SETTING_NAMES = {
     'log_level': 'REQUEST_LOGGING_DATA_LOG_LEVEL',
-    'colorize': 'REQUEST_LOGGING_DISABLE_COLORIZE',
+    'legacy_colorize': 'REQUEST_LOGGING_DISABLE_COLORIZE',
+    'colorize': 'REQUEST_LOGGING_ENABLE_COLORIZE',
     'max_body_length': 'REQUEST_LOGGING_MAX_BODY_LENGTH'
 }
 BINARY_REGEX = re.compile(r'(.+Content-Type:.*?)(\S+)/(\S+)(?:\r\n)*(.+)', re.S | re.I)
@@ -62,7 +68,11 @@ class LoggingMiddleware(object):
                                   logging.WARNING, logging.ERROR, logging.CRITICAL]:
             raise ValueError("Unknown log level({}) in setting({})".format(self.log_level, SETTING_NAMES['log_level']))
 
-        enable_colorize = getattr(settings, SETTING_NAMES['colorize'], DEFAULT_COLORIZE)
+        # TODO: remove deprecated legacy settings
+        enable_colorize = getattr(settings, SETTING_NAMES['legacy_colorize'], None)
+        if enable_colorize is None:
+            enable_colorize = getattr(settings, SETTING_NAMES['colorize'], DEFAULT_COLORIZE)
+
         if not isinstance(enable_colorize, bool):
             raise ValueError(
                 "{} should be boolean. {} is not boolean.".format(SETTING_NAMES['colorize'], enable_colorize)
@@ -78,51 +88,77 @@ class LoggingMiddleware(object):
         self.boundary = ''
 
     def __call__(self, request):
-        self.process_request(request)
-        response = self.get_response(request)
-        self.process_response(request, response)
+        self.process_request( request )
+        response = self.get_response( request )
+        self.process_response( request, response )
         return response
 
     def process_request(self, request):
-        method_path = "{} {}".format(request.method, request.get_full_path())
-        logging_context = self._get_logging_context(request, None)
-        self.logger.log(logging.INFO, method_path, logging_context)
+        skip_logging_because = self._should_log_route(request)
+        if skip_logging_because:
+            return self._skip_logging_request(request, skip_logging_because)
+        else:
+            return self._log_request(request)
 
+    def _should_log_route(self, request):
         try:
             route_match = resolve(request.path)
-            method = request.method.lower()
-            view = route_match.func
-            func = view
-            # This is for "django rest framework"
-            if hasattr(view, 'cls'):
-                if hasattr(view, 'actions'):
-                    func = getattr(view.cls, view.actions[method], None)
-                else:
-                    func = getattr(view.cls, method, None)
-            elif hasattr(view, 'view_class'):
-                # This is for django class-based views
-                func = getattr(view.view_class, method, None)
-            self.no_logging_reason = getattr(func, NO_LOGGING_ATTR, None)
         except:
-            pass
+            return None
 
-        content_type = request.META.get('CONTENT_TYPE', '')
-        is_multipart = content_type.startswith('multipart/form-data')
-        if is_multipart:
-            self.boundary = '--' + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
+        method = request.method.lower()
+        view = route_match.func
+        func = view
+        # This is for "django rest framework"
+        if hasattr(view, 'cls'):
+            if hasattr(view, 'actions'):
+                actions = view.actions
+                if method in actions:
+                    func = getattr(view.cls, view.actions[method], None)
+            else:
+                func = getattr(view.cls, method, None)
+        elif hasattr(view, 'view_class'):
+            # This is for django class-based views
+            func = getattr(view.view_class, method, None)
+        self.no_logging_reason = getattr(func, NO_LOGGING_ATTR, None)
+        return self.no_logging_reason
 
+    def _skip_logging_request(self, request, reason):
+        method_path = "{} {}".format(request.method, request.get_full_path())
+        no_log_context = {
+            'args': (),
+            'kwargs': {
+                'extra': {
+                    'no_logging': reason
+                },
+            },
+        }
+        self.logger.log(logging.INFO, method_path + " (not logged because '" + reason + "')", no_log_context)
+
+    def _log_request(self, request):
+        method_path = "{} {}".format(request.method, request.get_full_path())
+
+        logging_context = self._get_logging_context(request, None)
+        self.logger.log(logging.INFO, method_path, logging_context)
+        self._log_request_headers(request, logging_context)
+        self._log_request_body(request, logging_context)
+
+    def _log_request_headers(self, request, logging_context):
         headers = {k: v for k, v in request.META.items() if k.startswith('HTTP_')}
 
         if headers:
             self.logger.log(self.log_level, headers, logging_context)
+
+    def _log_request_body(self, request, logging_context):
         if request.body:
-            if self.no_logging_reason is not None:
-                self.logger.log(self.log_level, self.no_logging_reason, logging_context)
+            content_type = request.META.get('CONTENT_TYPE', '')
+            is_multipart = content_type.startswith('multipart/form-data')
+            if is_multipart:
+                self.boundary = '--' + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
+            if is_multipart:
+                self._log_multipart(self._chunked_to_max(request.body), logging_context)
             else:
-                if is_multipart:
-                    self._log_multipart(self._chunked_to_max(request.body), logging_context)
-                else:
-                    self.logger.log(self.log_level, self._chunked_to_max(request.body), logging_context)
+                self.logger.log(self.log_level, self._chunked_to_max(request.body), logging_context)
 
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
@@ -132,8 +168,11 @@ class LoggingMiddleware(object):
             self.logger.log_error(logging.INFO, resp_log, logging_context)
             self._log_resp(logging.ERROR, response, logging_context)
         else:
-            self.logger.log(logging.INFO, resp_log, logging_context)
-            self._log_resp(self.log_level, response, logging_context)
+            if self.no_logging_reason:
+                self.logger.log(self.log_level, self.no_logging_reason, logging_context)
+            else:
+                self.logger.log(logging.INFO, resp_log, logging_context)
+                self._log_resp(self.log_level, response, logging_context)
 
         return response
 
@@ -141,7 +180,6 @@ class LoggingMiddleware(object):
         """
         Returns a map with args and kwargs to provide additional context to calls to logging.log().
         This allows the logging context to be created per process request/response call.
-
         """
         return {
             'args': (),
@@ -182,8 +220,7 @@ class LoggingMiddleware(object):
     def _log_resp(self, level, response, logging_context):
         if re.match('^application/json', response.get('Content-Type', ''), re.I):
             self.logger.log(level, response._headers, logging_context)
-            to_log = self.no_logging_reason if self.no_logging_reason else self._chunked_to_max(response.content)
-            self.logger.log(level, to_log, logging_context)
+            self.logger.log(level, self._chunked_to_max(response.content), logging_context)
 
     def _chunked_to_max(self, msg):
         return msg[0:self.max_body_length]
