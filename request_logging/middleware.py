@@ -121,6 +121,9 @@ class LoggingMiddleware(object):
             # This is for django class-based views
             func = getattr(view.view_class, method, None)
         self.no_logging_reason = getattr(func, NO_LOGGING_ATTR, None)
+        # handle empty message case to avoid false negative with empty decorator
+        if self.no_logging_reason is not None and not self.no_logging_reason:
+            self.no_logging_reason = 'Marked to not be logged'
         return self.no_logging_reason
 
     def _skip_logging_request(self, request, reason):
