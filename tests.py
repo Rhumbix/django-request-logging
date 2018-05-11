@@ -8,6 +8,7 @@ import mock
 import sys
 from django.conf import settings
 from django.test import RequestFactory, override_settings
+from django.http import HttpResponse
 
 import request_logging
 from request_logging.middleware import LoggingMiddleware, DEFAULT_LOG_LEVEL, DEFAULT_COLORIZE, DEFAULT_MAX_BODY_LENGTH,\
@@ -368,8 +369,9 @@ class DRFTestCase(BaseLogTestCase):
     def test_no_response_logging_is_honored(self, mock_log):
         uri = "/widgets"
         request = self.factory.get(uri)
-        self.middleware.process_request(request)
-        self._assert_not_logged(mock_log, "Unannotated")
+        mock_response = HttpResponse('{"example":"response"}', content_type='application/json', status=422)
+        self.middleware.process_response(request, response=mock_response)
+        self._assert_not_logged(mock_log, '"example":"response"')
 
     def test_non_existent_drf_route_logs(self, mock_log):
         uri = "/widgets/1234"
