@@ -33,10 +33,14 @@ def dont_log_empty_response_body(request):
     return HttpResponse(status=201)
 
 
-class UnannotatedDRF(viewsets.ReadOnlyModelViewSet):
+class UnannotatedDRF(viewsets.ModelViewSet):
     @no_logging("DRF explicit annotation")
     def list(self, request):
         return HttpResponse(status=200, body="DRF Unannotated")
+
+    @no_logging("Takes excessive amounts of time to log")
+    def partial_update(self, request, *args, **kwargs):
+        return HttpResponse(status=200, body="NO logging")
 
 
 router = routers.SimpleRouter(trailing_slash=False)

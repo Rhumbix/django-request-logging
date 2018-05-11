@@ -372,13 +372,14 @@ class DRFTestCase(BaseLogTestCase):
         mock_response = HttpResponse('{"example":"response"}', content_type='application/json', status=422)
         self.middleware.process_response(request, response=mock_response)
         self._assert_not_logged(mock_log, '"example":"response"')
+        self._assert_logged(mock_log, '/widgets')
 
     def test_non_existent_drf_route_logs(self, mock_log):
         uri = "/widgets/1234"
-        request = self.factory.post(uri, data={"test": "that amorea"})
+        request = self.factory.patch(uri, data={"almost": "had you"})
         self.middleware.process_request(request)
-        self._assert_logged(mock_log, "that amorea")
-
+        self._assert_not_logged(mock_log, "almost")
+        self._assert_not_logged(mock_log, "had you")
 
 
 if __name__ == '__main__':

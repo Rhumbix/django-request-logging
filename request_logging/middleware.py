@@ -112,7 +112,7 @@ class LoggingMiddleware(object):
         if hasattr(view, 'cls'):
             if hasattr(view, 'actions'):
                 actions = view.actions
-                if hasattr(actions, method):
+                if actions[method]:
                     func = getattr(view.cls, view.actions[method], None)
             else:
                 func = getattr(view.cls, method, None)
