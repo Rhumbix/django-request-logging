@@ -161,6 +161,10 @@ class LoggingMiddleware(object):
 
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
+        skip_logging_because = self._should_log_route(request)
+        if skip_logging_because:
+            self.logger.log_error(logging.INFO, resp_log, {'args': {}, 'kwargs': { 'no_logging': skip_logging_because }})
+            return response
         logging_context = self._get_logging_context(request, response)
 
         if response.status_code in range(400, 600):
