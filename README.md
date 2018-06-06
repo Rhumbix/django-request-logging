@@ -1,7 +1,7 @@
 django-request-logging
 ==========================
 
-Plug django-request-logging into your Django project and you will have intuitive and color coded request/response payload logging, for both web requests and API requests
+Plug django-request-logging into your Django project and you will have intuitive and color coded request/response payload logging, for both web requests and API requests. Supports Django 1.8+.
 
 ## Installing
 
@@ -63,7 +63,3 @@ This legacy setting will still available, but you should't use this setting anym
 We keep this settings for backward compatibility. 
 ### REQUEST_LOGGING_MAX_BODY_LENGTH
 By default, max length of a request body and a response content is cut to 50000 characters.
-
-## Enjoy!
-
-Email me with any questions: [kenneth.jiang@gmail.com](kenneth.jiang@gmail.com).
