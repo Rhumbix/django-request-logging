@@ -195,7 +195,7 @@ class LoggingMiddleware(object):
     def _log_multipart(self, body, logging_context):
         """
         Splits multipart body into parts separated by "boundary", then matches each part to BINARY_REGEX
-        which searches for existance of "Content-Type" and capture of what type is this part.
+        which searches for existence of "Content-Type" and capture of what type is this part.
         If it is an image or an application replace that content with "(binary data)" string.
         This function will log "(multipart/form)" if body can't be decoded by utf-8.
         """
