@@ -19,8 +19,7 @@ SETTING_NAMES = {
     'colorize': 'REQUEST_LOGGING_ENABLE_COLORIZE',
     'max_body_length': 'REQUEST_LOGGING_MAX_BODY_LENGTH'
 }
-BINARY_REGEX = re.compile(r'(.+Content-Type:.*?)(\S+)/(\S+)(?:\r\n)*(.+)',
-                          re.S | re.I)
+BINARY_REGEX = re.compile(r'(.+Content-Type:.*?)(\S+)/(\S+)(?:\r\n)*(.+)', re.S | re.I)
 BINARY_TYPES = ('image', 'application')
 NO_LOGGING_ATTR = 'no_logging'
 NO_LOGGING_MSG = 'No logging for this endpoint'
@@ -63,41 +62,34 @@ class LoggingMiddleware(object):
     def __init__(self, get_response=None):
         self.get_response = get_response
 
-        self.log_level = getattr(settings, SETTING_NAMES['log_level'],
-                                 DEFAULT_LOG_LEVEL)
-        if self.log_level not in [
-                logging.NOTSET, logging.DEBUG, logging.INFO, logging.WARNING,
-                logging.ERROR, logging.CRITICAL
-        ]:
-            raise ValueError("Unknown log level({}) in setting({})".format(
-                self.log_level, SETTING_NAMES['log_level']))
+        self.log_level = getattr(settings, SETTING_NAMES['log_level'], DEFAULT_LOG_LEVEL)
+        if self.log_level not in [logging.NOTSET, logging.DEBUG, logging.INFO,
+                                  logging.WARNING, logging.ERROR, logging.CRITICAL]:
+            raise ValueError("Unknown log level({}) in setting({})".format(self.log_level, SETTING_NAMES['log_level']))
 
         # TODO: remove deprecated legacy settings
-        enable_colorize = getattr(settings, SETTING_NAMES['legacy_colorize'],
-                                  None)
+        enable_colorize = getattr(settings, SETTING_NAMES['legacy_colorize'], None)
         if enable_colorize is None:
-            enable_colorize = getattr(settings, SETTING_NAMES['colorize'],
-                                      DEFAULT_COLORIZE)
+            enable_colorize = getattr(settings, SETTING_NAMES['colorize'], DEFAULT_COLORIZE)
 
         if not isinstance(enable_colorize, bool):
-            raise ValueError("{} should be boolean. {} is not boolean.".format(
-                SETTING_NAMES['colorize'], enable_colorize))
+            raise ValueError(
+                "{} should be boolean. {} is not boolean.".format(SETTING_NAMES['colorize'], enable_colorize)
+            )
 
-        self.max_body_length = getattr(settings,
-                                       SETTING_NAMES['max_body_length'],
-                                       DEFAULT_MAX_BODY_LENGTH)
+        self.max_body_length = getattr(settings, SETTING_NAMES['max_body_length'], DEFAULT_MAX_BODY_LENGTH)
         if not isinstance(self.max_body_length, int):
-            raise ValueError("{} should be int. {} is not int.".format(
-                SETTING_NAMES['max_body_length'], self.max_body_length))
+            raise ValueError(
+                "{} should be int. {} is not int.".format(SETTING_NAMES['max_body_length'], self.max_body_length)
+            )
 
-        self.logger = ColourLogger("cyan",
-                                   "magenta") if enable_colorize else Logger()
+        self.logger = ColourLogger("cyan", "magenta") if enable_colorize else Logger()
         self.boundary = ''
 
     def __call__(self, request):
-        self.process_request(request)
-        response = self.get_response(request)
-        self.process_response(request, response)
+        self.process_request( request )
+        response = self.get_response( request )
+        self.process_response( request, response )
         return response
 
     def process_request(self, request):
@@ -141,9 +133,7 @@ class LoggingMiddleware(object):
                 },
             },
         }
-        self.logger.log(logging.INFO,
-                        method_path + " (not logged because '" + reason + "')",
-                        no_log_context)
+        self.logger.log(logging.INFO, method_path + " (not logged because '" + reason + "')", no_log_context)
 
     def _log_request(self, request):
         method_path = "{} {}".format(request.method, request.get_full_path())
@@ -154,10 +144,7 @@ class LoggingMiddleware(object):
         self._log_request_body(request, logging_context)
 
     def _log_request_headers(self, request, logging_context):
-        headers = {
-            k: v
-            for k, v in request.META.items() if k.startswith('HTTP_')
-        }
+        headers = {k: v for k, v in request.META.items() if k.startswith('HTTP_')}
 
         if headers:
             self.logger.log(self.log_level, headers, logging_context)
@@ -169,27 +156,15 @@ class LoggingMiddleware(object):
             if is_multipart:
                 self.boundary = '--' + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
             if is_multipart:
-                self._log_multipart(
-                    self._chunked_to_max(request.body), logging_context)
+                self._log_multipart(self._chunked_to_max(request.body), logging_context)
             else:
-                self.logger.log(self.log_level,
-                                self._chunked_to_max(request.body),
-                                logging_context)
+                self.logger.log(self.log_level, self._chunked_to_max(request.body), logging_context)
 
     def process_response(self, request, response):
-        resp_log = "{} {} - {}".format(request.method, request.get_full_path(),
-                                       response.status_code)
+        resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
         skip_logging_because = self._should_log_route(request)
         if skip_logging_because:
-            self.logger.log_error(
-                logging.INFO, resp_log, {
-                    'args': {},
-                    'kwargs': {
-                        'extra': {
-                            'no_logging': skip_logging_because
-                        }
-                    }
-                })
+            self.logger.log_error(logging.INFO, resp_log, {'args': {}, 'kwargs': { 'extra' :  { 'no_logging': skip_logging_because } }})
             return response
         logging_context = self._get_logging_context(request, response)
 
@@ -227,8 +202,7 @@ class LoggingMiddleware(object):
         try:
             body_str = body if isinstance(body, str) else body.decode()
         except UnicodeDecodeError:
-            self.logger.log(self.log_level, "(multipart/form)",
-                            logging_context)
+            self.logger.log(self.log_level, "(multipart/form)", logging_context)
             return
 
         parts = body_str.split(self.boundary)
@@ -236,9 +210,7 @@ class LoggingMiddleware(object):
         for i, part in enumerate(parts):
             if 'Content-Type:' in part:
                 match = BINARY_REGEX.search(part)
-                if match and match.group(
-                        2) in BINARY_TYPES and not match.group(4) in ('',
-                                                                      '\r\n'):
+                if match and match.group(2) in BINARY_TYPES and not match.group(4) in ('', '\r\n'):
                     part = match.expand(r'\1\2/\3\r\n\r\n(binary data)\r\n')
 
             if i != last:
@@ -247,8 +219,7 @@ class LoggingMiddleware(object):
             self.logger.log(self.log_level, part, logging_context)
 
     def _log_resp(self, level, response, logging_context):
-        if re.match('^application/json', response.get('Content-Type', ''),
-                    re.I):
+        if re.match('^application/json', response.get('Content-Type', ''), re.I):
             self.logger.log(level, response._headers, logging_context)
             if response.streaming:
                 # There's a chance that if it's streaming it's because large and it might hit
