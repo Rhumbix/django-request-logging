@@ -221,7 +221,15 @@ class LoggingMiddleware(object):
     def _log_resp(self, level, response, logging_context):
         if re.match('^application/json', response.get('Content-Type', ''), re.I):
             self.logger.log(level, response._headers, logging_context)
-            self.logger.log(level, self._chunked_to_max(response.content), logging_context)
+            if response.streaming:
+                # There's a chance that if it's streaming it's because large and it might hit
+                # the max_body_length very often. Not to mention that StreamingHttpResponse
+                # documentation advises to iterate only once on the content.
+                # So the idea here is to just _not_ log it.
+                self.logger.log(level, '(data_stream)', logging_context)
+            else:
+                self.logger.log(level, self._chunked_to_max(response.content),
+                                logging_context)
 
     def _chunked_to_max(self, msg):
         return msg[0:self.max_body_length]
