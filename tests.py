@@ -8,7 +8,7 @@ import mock
 import sys
 from django.conf import settings
 from django.test import RequestFactory, override_settings
-from django.http import HttpResponse
+from django.http import HttpResponse, StreamingHttpResponse
 
 import request_logging
 from request_logging.middleware import LoggingMiddleware, DEFAULT_LOG_LEVEL, DEFAULT_COLORIZE, DEFAULT_MAX_BODY_LENGTH,\
@@ -145,6 +145,13 @@ class LogTestCase(BaseLogTestCase):
         self._assert_logged(mock_log, "(multipart/form)")
         self._assert_logged(mock_log, "test_headers")
         self._assert_logged(mock_log, "HTTP_USER_AGENT")
+
+    def test_minimal_logging_when_streaming(self, mock_log):
+        uri = "/somewhere"
+        request = self.factory.get(uri)
+        response = StreamingHttpResponse(status=200, streaming_content=b'OK', content_type='application/json')
+        self.middleware.process_response(request, response=response)
+        self._assert_logged(mock_log, '(data_stream)')
 
 
 @mock.patch.object(request_logging.middleware, "request_logger")
