@@ -168,7 +168,7 @@ class LoggingMiddleware(object):
             return response
         logging_context = self._get_logging_context(request, response)
 
-        if response.status_code in range(400, 600):
+        if response.status_code in range(500, 600):
             self.logger.log_error(logging.INFO, resp_log, logging_context)
             self._log_resp(logging.ERROR, response, logging_context)
         else:
