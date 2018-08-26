@@ -11,13 +11,15 @@ except ImportError:
     from django.urls import resolve
 
 DEFAULT_LOG_LEVEL = logging.DEBUG
+DEFAULT_HTTP_4XX_LOG_LEVEL = logging.ERROR
 DEFAULT_COLORIZE = True
 DEFAULT_MAX_BODY_LENGTH = 50000  # log no more than 3k bytes of content
 SETTING_NAMES = {
     'log_level': 'REQUEST_LOGGING_DATA_LOG_LEVEL',
+    'http_4xx_log_level': 'REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL',
     'legacy_colorize': 'REQUEST_LOGGING_DISABLE_COLORIZE',
     'colorize': 'REQUEST_LOGGING_ENABLE_COLORIZE',
-    'max_body_length': 'REQUEST_LOGGING_MAX_BODY_LENGTH'
+    'max_body_length': 'REQUEST_LOGGING_MAX_BODY_LENGTH',
 }
 BINARY_REGEX = re.compile(r'(.+Content-Type:.*?)(\S+)/(\S+)(?:\r\n)*(.+)', re.S | re.I)
 BINARY_TYPES = ('image', 'application')
@@ -63,9 +65,13 @@ class LoggingMiddleware(object):
         self.get_response = get_response
 
         self.log_level = getattr(settings, SETTING_NAMES['log_level'], DEFAULT_LOG_LEVEL)
-        if self.log_level not in [logging.NOTSET, logging.DEBUG, logging.INFO,
-                                  logging.WARNING, logging.ERROR, logging.CRITICAL]:
-            raise ValueError("Unknown log level({}) in setting({})".format(self.log_level, SETTING_NAMES['log_level']))
+        self.http_4xx_log_level = getattr(settings, SETTING_NAMES['http_4xx_log_level'], DEFAULT_HTTP_4XX_LOG_LEVEL)
+
+        for log_attr in ('log_level', 'http_4xx_log_level'):
+            level = getattr(self, log_attr)
+            if level not in [logging.NOTSET, logging.DEBUG, logging.INFO,
+                             logging.WARNING, logging.ERROR, logging.CRITICAL]:
+                raise ValueError("Unknown log level({}) in setting({})".format(level, SETTING_NAMES[log_attr]))
 
         # TODO: remove deprecated legacy settings
         enable_colorize = getattr(settings, SETTING_NAMES['legacy_colorize'], None)
@@ -168,7 +174,15 @@ class LoggingMiddleware(object):
             return response
         logging_context = self._get_logging_context(request, response)
 
-        if response.status_code in range(500, 600):
+        if response.status_code in range(400, 500):
+            if self.http_4xx_log_level == DEFAULT_HTTP_4XX_LOG_LEVEL:
+                # default, log as per 5xx
+                self.logger.log_error(logging.INFO, resp_log, logging_context)
+                self._log_resp(logging.ERROR, response, logging_context)
+            else:
+                self.logger.log(self.http_4xx_log_level, resp_log, logging_context)
+                self._log_resp(self.log_level, response, logging_context)
+        elif response.status_code in range(500, 600):
             self.logger.log_error(logging.INFO, resp_log, logging_context)
             self._log_resp(logging.ERROR, response, logging_context)
         else:
