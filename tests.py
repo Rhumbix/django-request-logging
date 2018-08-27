@@ -12,7 +12,7 @@ from django.http import HttpResponse, StreamingHttpResponse
 
 import request_logging
 from request_logging.middleware import LoggingMiddleware, DEFAULT_LOG_LEVEL, DEFAULT_COLORIZE, DEFAULT_MAX_BODY_LENGTH,\
-    NO_LOGGING_MSG
+    NO_LOGGING_MSG, DEFAULT_HTTP_4XX_LOG_LEVEL
 
 settings.configure()
 
@@ -231,6 +231,41 @@ class LogSettingsLogLevelTestCase(BaseLogSettingsTestCase):
         self._assert_logged_with_level(mock_log, logging.INFO)
 
     @override_settings(REQUEST_LOGGING_DATA_LOG_LEVEL=None)
+    def test_invalid_log_level(self, mock_log):
+        with self.assertRaises(ValueError):
+            LoggingMiddleware()
+
+
+@mock.patch.object(request_logging.middleware, "request_logger")
+class LogSettingsHttp4xxAsErrorTestCase(BaseLogTestCase):
+    def setUp(self):
+        from django.urls import set_urlconf
+        set_urlconf('test_urls')
+        self.factory = RequestFactory()
+        self.request = self.factory.get("/not-a-valid-url")
+
+        response = mock.MagicMock()
+        response.status_code = 404
+        response.get.return_value = 'application/json'
+        response._headers = {'test_headers': 'test_headers'}
+
+        self.response_404 = response
+
+    def test_logging_default_http_4xx_error(self, mock_log):
+        middleware = LoggingMiddleware()
+        middleware.process_response(self.request, self.response_404)
+        self.assertEqual(DEFAULT_HTTP_4XX_LOG_LEVEL, logging.ERROR)
+        self._assert_logged_with_level(mock_log, DEFAULT_HTTP_4XX_LOG_LEVEL)
+
+    def test_logging_http_4xx_level(self, mock_log):
+        for level in (logging.INFO, logging.WARNING, logging.ERROR):
+            mock_log.reset_mock()
+            with override_settings(REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL=level):
+                middleware = LoggingMiddleware()
+                middleware.process_response(self.request, self.response_404)
+                self._assert_logged_with_level(mock_log, level)
+
+    @override_settings(REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL=None)
     def test_invalid_log_level(self, mock_log):
         with self.assertRaises(ValueError):
             LoggingMiddleware()
