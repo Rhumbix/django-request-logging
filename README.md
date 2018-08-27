@@ -67,5 +67,5 @@ We keep this settings for backward compatibility.
 ### REQUEST_LOGGING_MAX_BODY_LENGTH
 By default, max length of a request body and a response content is cut to 50000 characters.
 ### REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL
-By default, HTTP status codes between 400 - 499 are logged at ERROR level.  You can set `REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL=logger.WARNING` (etc) to override this.
-If you set `REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL=logger.INFO` they will be logged the same as normal requests.
+By default, HTTP status codes between 400 - 499 are logged at ERROR level.  You can set `REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL=logging.WARNING` (etc) to override this.
+If you set `REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL=logging.INFO` they will be logged the same as normal requests.
