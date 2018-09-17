@@ -11,8 +11,9 @@ from django.test import RequestFactory, override_settings
 from django.http import HttpResponse
 
 import request_logging
-from request_logging.middleware import LoggingMiddleware, DEFAULT_LOG_LEVEL, DEFAULT_COLORIZE, DEFAULT_MAX_BODY_LENGTH,\
-    NO_LOGGING_MSG
+from request_logging.middleware import \
+    LoggingMiddleware, \
+    DEFAULT_LOG_LEVEL, DEFAULT_COLORIZE, DEFAULT_MAX_BODY_LENGTH, NO_LOGGING_MSG
 
 settings.configure()
 
@@ -21,7 +22,7 @@ class BaseLogTestCase(unittest.TestCase):
     def _assert_logged(self, mock_log, expected_entry):
         calls = mock_log.log.call_args_list
         text = "".join([call[0][1] for call in calls])
-        self.assertIn( expected_entry, text )
+        self.assertIn(expected_entry, text)
 
     def _assert_logged_with_level(self, mock_log, level):
         calls = mock_log.log.call_args_list
@@ -46,6 +47,7 @@ class BaseLogTestCase(unittest.TestCase):
 class MissingRoutes(BaseLogTestCase):
     def setUp(self):
         self.factory = RequestFactory()
+
         def get_response(request):
             response = mock.MagicMock()
             response.status_code = 200
@@ -66,6 +68,7 @@ class MissingRoutes(BaseLogTestCase):
 class LogTestCase(BaseLogTestCase):
     def setUp(self):
         self.factory = RequestFactory()
+
         def get_response(request):
             response = mock.MagicMock()
             response.status_code = 200

@@ -1,8 +1,19 @@
+from __future__ import unicode_literals
+
 import logging
 import re
 
 from django.conf import settings
+from django.utils.encoding import force_text
 from django.utils.termcolors import colorize
+
+try:
+    # Python 3.x
+    from urllib.parse import unquote
+except ImportError:
+    # Python 2.7
+    from urllib import unquote
+
 try:
     # Django 1.x
     from django.core.urlresolvers import resolve
@@ -87,9 +98,9 @@ class LoggingMiddleware(object):
         self.boundary = ''
 
     def __call__(self, request):
-        self.process_request( request )
-        response = self.get_response( request )
-        self.process_response( request, response )
+        self.process_request(request)
+        response = self.get_response(request)
+        self.process_response(request, response)
         return response
 
     def process_request(self, request):
@@ -158,13 +169,18 @@ class LoggingMiddleware(object):
             if is_multipart:
                 self._log_multipart(self._chunked_to_max(request.body), logging_context)
             else:
-                self.logger.log(self.log_level, self._chunked_to_max(request.body), logging_context)
+                if request.content_type == 'application/x-www-form-urlencoded':
+                    entity = unquote(request.body)
+                else:
+                    entity = force_text(request.body, encoding='utf-8')
+                self.logger.log(self.log_level, self._chunked_to_max(entity), logging_context)
 
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
         skip_logging_because = self._should_log_route(request)
         if skip_logging_because:
-            self.logger.log_error(logging.INFO, resp_log, {'args': {}, 'kwargs': { 'extra' :  { 'no_logging': skip_logging_because } }})
+            self.logger.log_error(logging.INFO, resp_log,
+                                  {'args': {}, 'kwargs': {'extra': {'no_logging': skip_logging_because}}})
             return response
         logging_context = self._get_logging_context(request, response)
 
@@ -221,7 +237,7 @@ class LoggingMiddleware(object):
     def _log_resp(self, level, response, logging_context):
         if re.match('^application/json', response.get('Content-Type', ''), re.I):
             self.logger.log(level, response._headers, logging_context)
-            self.logger.log(level, self._chunked_to_max(response.content), logging_context)
+            self.logger.log(level, self._chunked_to_max(force_text(response.content)), logging_context)
 
     def _chunked_to_max(self, msg):
         return msg[0:self.max_body_length]
