@@ -141,7 +141,7 @@ class LoggingMiddleware(object):
         return no_logging
 
     def _skip_logging_request(self, request, reason):
-        method_path = "{} {}".format(request.method, request.get_full_path())
+        method_path = "{} {}".format(request.method, unquote(request.get_full_path()))
         no_log_context = {
             'args': (),
             'kwargs': {
@@ -153,7 +153,7 @@ class LoggingMiddleware(object):
         self.logger.log(logging.INFO, method_path + " (not logged because '" + reason + "')", no_log_context)
 
     def _log_request(self, request):
-        method_path = "{} {}".format(request.method, request.get_full_path())
+        method_path = "{} {}".format(request.method, unquote(request.get_full_path()))
 
         logging_context = self._get_logging_context(request, None)
         self.logger.log(logging.INFO, method_path, logging_context)
@@ -176,13 +176,13 @@ class LoggingMiddleware(object):
                 self._log_multipart(self._chunked_to_max(request.body), logging_context)
             else:
                 if request.content_type == 'application/x-www-form-urlencoded':
-                    entity = unquote(request.body)
+                    entity = unquote(str(request.body))
                 else:
                     entity = force_text(request.body, encoding='utf-8')
                 self.logger.log(self.log_level, self._chunked_to_max(entity), logging_context)
 
     def process_response(self, request, response):
-        resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
+        resp_log = "{} {} - {}".format(request.method, unquote(request.get_full_path()), response.status_code)
         skip_logging_because = self._should_log_route(request)
         if skip_logging_because:
             self.logger.log_error(logging.INFO, resp_log,
@@ -258,8 +258,11 @@ class LoggingMiddleware(object):
                 # So the idea here is to just _not_ log it.
                 self.logger.log(level, '(data_stream)', logging_context)
             else:
-                self.logger.log(level, self._chunked_to_max(response.content),
-                                logging_context)
+                self.logger.log(
+                    level,
+                    force_text(self._chunked_to_max(response.content)),
+                    logging_context
+                )
 
     def _chunked_to_max(self, msg):
         return msg[0:self.max_body_length]
