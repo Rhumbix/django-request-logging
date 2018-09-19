@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import logging
 import re
+import sys
 
 from django.conf import settings
 from django.utils.encoding import force_text
@@ -179,6 +180,8 @@ class LoggingMiddleware(object):
                     entity = unquote(str(request.body))
                 else:
                     entity = force_text(request.body, encoding='utf-8')
+                    if sys.version_info < (3, 0):
+                        entity = entity.encode('utf-8')
                 self.logger.log(self.log_level, self._chunked_to_max(entity), logging_context)
 
     def process_response(self, request, response):
