@@ -380,6 +380,14 @@ class DecoratorTestCase(BaseLogTestCase):
         self._assert_not_logged(mock_log, NO_LOGGING_MSG)
         self._assert_logged(mock_log, 'Empty response body')
 
+    def test_no_logging_alternate_urlconf(self, mock_log):
+        body = u"some super secret body"
+        request = self.factory.post("/test_route", data={"file": body})
+        request.urlconf = 'test_urls_alternate'
+        self.middleware.process_request(request)
+        self._assert_not_logged(mock_log, body)
+        self._assert_logged(mock_log, NO_LOGGING_MSG)
+
     def test_still_logs_verb(self, mock_log):
         body = u"our work of art"
         request = self.factory.post("/dont_log_empty_response_body", data={"file": body})

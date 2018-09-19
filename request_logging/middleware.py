@@ -2,6 +2,7 @@ import logging
 import re
 
 from django.conf import settings
+from django.urls import Resolver404
 from django.utils.termcolors import colorize
 try:
     # Django 1.x
@@ -106,9 +107,15 @@ class LoggingMiddleware(object):
             return self._log_request(request)
 
     def _should_log_route(self, request):
+        # request.urlconf may be set by middleware or application level code.
+        # Use this urlconf if present or default to None.
+        # https://docs.djangoproject.com/en/2.1/topics/http/urls/#how-django-processes-a-request
+        # https://docs.djangoproject.com/en/2.1/ref/request-response/#attributes-set-by-middleware
+        urlconf = getattr(request, 'urlconf', None)
+
         try:
-            route_match = resolve(request.path)
-        except:
+            route_match = resolve(request.path, urlconf=urlconf)
+        except Resolver404:
             return None
 
         method = request.method.lower()
