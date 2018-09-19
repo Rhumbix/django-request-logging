@@ -1,4 +1,6 @@
 #! /usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import io
 import unittest
 import re
@@ -424,6 +426,59 @@ class DRFTestCase(BaseLogTestCase):
         self.middleware.process_request(request)
         self._assert_not_logged(mock_log, "almost")
         self._assert_not_logged(mock_log, "had you")
+
+
+@mock.patch.object(request_logging.middleware, "request_logger")
+class UnicodeLogTestCase(BaseLogTestCase):
+    def setUp(self):
+        def get_response(request):
+            response = mock.MagicMock()
+            response.status_code = 200
+            response.get.return_value = 'application/json'
+            response._headers = {'test_headers': 'test_headers'}
+            return response
+
+        self.uri = "/test_class"
+        self.factory = RequestFactory()
+        self.middleware = LoggingMiddleware(get_response)
+
+    def test_logs_unicode_http_response(self, mock_log):
+        request = self.factory.get(self.uri)
+        response = mock.MagicMock()
+        response.get.return_value = "application/json"
+        response.content = str({"test_unicode_body": "El Niño"})
+        response.streaming = False
+        self.middleware.process_response(request, response)
+        self._assert_logged(mock_log, response.content)
+
+    def test_logs_url_with_unicode(self, mock_log):
+        url = "{}/El Niño".format(self.uri)
+        request = self.factory.get(url)
+        self.middleware.process_request(request)
+        self._assert_logged(mock_log, url)
+
+    def test_logs_unicode_http_request_with_json_type_body(self, mock_log):
+        body = "El Niño"
+        request = self.factory.post("/somewhere", data={"body": body})
+        self.middleware.process_request(request)
+        self._assert_logged(mock_log, body)
+
+    def test_logs_unicode_http_request_with_url_encoded_body(self, mock_log):
+        try:
+            # Python 3.x
+            from urllib.parse import quote, unquote
+        except ImportError:
+            # Python 2.7
+            from urllib import quote, unquote
+
+        body = "El Niño"
+        request = self.factory.post(
+            "/somewhere",
+            data=quote(body, encoding='utf-8'),
+            content_type="application/x-www-form-urlencoded"
+        )
+        self.middleware.process_request(request)
+        self._assert_logged(mock_log, unquote(body))
 
 
 if __name__ == '__main__':
