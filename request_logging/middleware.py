@@ -149,7 +149,7 @@ class LoggingMiddleware(object):
         self.logger.log(logging.INFO, method_path + " (not logged because '" + reason + "')", no_log_context)
 
     def _log_request(self, request):
-        method_path = "{} {}".format(request.method, request.get_full_path())
+        method_path = "{} {} - {}".format(request.method, request.get_full_path(), request.user)
 
         logging_context = self._get_logging_context(request, None)
         self.logger.log(logging.INFO, method_path, logging_context)
@@ -174,7 +174,7 @@ class LoggingMiddleware(object):
                 self.logger.log(self.log_level, self._chunked_to_max(request.body), logging_context)
 
     def process_response(self, request, response):
-        resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
+        resp_log = "{} {} - {} - {}".format(request.method, request.get_full_path(), request.user, response.status_code)
         skip_logging_because = self._should_log_route(request)
         if skip_logging_because:
             self.logger.log_error(logging.INFO, resp_log, {'args': {}, 'kwargs': { 'extra' :  { 'no_logging': skip_logging_because } }})
