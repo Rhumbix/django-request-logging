@@ -221,7 +221,7 @@ class LoggingMiddleware(object):
         This function will log "(multipart/form)" if body can't be decoded by utf-8.
         """
         try:
-            body_str = body if isinstance(body, str) else body.decode()
+            body_str = body.decode()
         except UnicodeDecodeError:
             self.logger.log(self.log_level, "(multipart/form)", logging_context)
             return
