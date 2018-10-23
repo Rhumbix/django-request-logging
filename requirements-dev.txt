@@ -1,4 +1,4 @@
 mock==2.0.0
-django==1.11.8
+django==1.11.16
 coverage==4.4.2
 djangorestframework==3.8.2
