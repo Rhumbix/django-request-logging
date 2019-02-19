@@ -21,7 +21,7 @@ def get_version(package):
     return re.search("__version__ = ['\"]([^'\"]+)['\"]", init_py).group(1)
 
 
-version = get_version('rest_framework')
+version = get_version('request_logging')
 
 
 if sys.argv[-1] == 'publish':
@@ -35,13 +35,13 @@ if sys.argv[-1] == 'publish':
     print("  git push --tags")
     shutil.rmtree('dist')
     shutil.rmtree('build')
-    shutil.rmtree('djangorestframework.egg-info')
+    shutil.rmtree('django_request_logging.egg-info')
     sys.exit()
 
 
 setup(
     name='django-request-logging',
-    version='0.6.7',
+    version=version,
     description='Django middleware that logs http request body.',
     long_description=read('README.md'),
     long_description_content_type='text/markdown',
