@@ -1,14 +1,50 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import os
+import re
+import shutil
+import sys
+from io import open
+
 from setuptools import setup
 
-with open("README.md", "r") as fh:
-    long_description = fh.read()
+
+def read(f):
+    return open(f, 'r', encoding='utf-8').read()
+
+
+def get_version(package):
+    """
+    Return package version as listed in `__version__` in `init.py`.
+    """
+    init_py = open(os.path.join(package, '__init__.py')).read()
+    return re.search("__version__ = ['\"]([^'\"]+)['\"]", init_py).group(1)
+
+
+version = get_version('rest_framework')
+
+
+if sys.argv[-1] == 'publish':
+    if os.system("pip freeze | grep twine"):
+        print("twine not installed.\nUse `pip install twine`.\nExiting.")
+        sys.exit()
+    os.system("python setup.py sdist bdist_wheel")
+    os.system("twine upload dist/*")
+    print("You probably want to also tag the version now:")
+    print("  git tag -a %s -m 'version %s'" % (version, version))
+    print("  git push --tags")
+    shutil.rmtree('dist')
+    shutil.rmtree('build')
+    shutil.rmtree('djangorestframework.egg-info')
+    sys.exit()
+
 
 setup(
     name='django-request-logging',
-    version='0.6.6',
+    version='0.6.7',
     description='Django middleware that logs http request body.',
-    long_description=long_description,
-    long_description_content_type="text/markdown",
+    long_description=read('README.md'),
+    long_description_content_type='text/markdown',
     url='https://github.com/Rhumbix/django-request-logging.git',
     author='Rhumbix',
     author_email='dev@rhumbix.com',
