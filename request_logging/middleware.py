@@ -3,18 +3,12 @@ import re
 
 from django.conf import settings
 try:
-    # Django 1.x
-    from django.core.urlresolvers import Resolver404
+    # Django >= 1.10
+    from django.urls import resolve, Resolver404
 except ImportError:
-    # Django 2.x
-    from django.urls import Resolver404
+    # Django < 1.10
+    from django.core.urlresolvers import resolve, Resolver404
 from django.utils.termcolors import colorize
-try:
-    # Django 1.x
-    from django.core.urlresolvers import resolve
-except ImportError:
-    # Django 2.x
-    from django.urls import resolve
 
 DEFAULT_LOG_LEVEL = logging.DEBUG
 DEFAULT_HTTP_4XX_LOG_LEVEL = logging.ERROR
