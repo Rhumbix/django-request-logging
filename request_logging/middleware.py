@@ -173,7 +173,8 @@ class LoggingMiddleware(object):
             if is_multipart:
                 self._log_multipart(self._chunked_to_max(request.body), logging_context)
             else:
-                self.logger.log(self.log_level, SafeExceptionReporterFilter().get_post_parameters(request), logging_context)
+                safe_body = SafeExceptionReporterFilter().get_post_parameters(request).dict()
+                self.logger.log(self.log_level, self._chunked_to_max(str(safe_body)), logging_context)
 
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
