@@ -59,6 +59,7 @@ class MissingRoutes(BaseLogTestCase):
         body = u"some body"
         request = self.factory.post("/a-missing-route-somewhere", data={"file": body})
         self.middleware.process_request(request)
+        self.middleware.process_body(request)
         self._assert_logged(mock_log, body)
 
 
@@ -79,6 +80,7 @@ class LogTestCase(BaseLogTestCase):
         body = u"some body"
         request = self.factory.post("/somewhere", data={"file": body})
         self.middleware.process_request(request)
+        self.middleware.process_body(request)
         self._assert_logged(mock_log, body)
 
     def test_request_binary_logged(self, mock_log):
@@ -86,6 +88,7 @@ class LogTestCase(BaseLogTestCase):
         datafile = io.StringIO(body)
         request = self.factory.post("/somewhere", data={"file": datafile})
         self.middleware.process_request(request)
+        self.middleware.process_body(request)
         self._assert_logged(mock_log, "(binary data)")
 
     def test_request_jpeg_logged(self, mock_log):
@@ -96,6 +99,7 @@ class LogTestCase(BaseLogTestCase):
         datafile = io.BytesIO(body)
         request = self.factory.post("/somewhere", data={"file": datafile})
         self.middleware.process_request(request)
+        self.middleware.process_body(request)
         self._assert_logged(mock_log, "(multipart/form)")
 
     def test_request_headers_logged(self, mock_log):
@@ -315,7 +319,7 @@ class LogSettingsMaxLengthTestCase(BaseLogTestCase):
 
         body = DEFAULT_MAX_BODY_LENGTH * "0" + "1"
         request = factory.post("/somewhere", data={"file": body})
-        middleware.process_request(request)
+        middleware.process_body(request)
 
         request_body_str = request.body if isinstance(request.body, str) else request.body.decode()
         self._assert_logged(mock_log, re.sub(r'\r?\n', '', request_body_str[:DEFAULT_MAX_BODY_LENGTH]))
@@ -328,7 +332,7 @@ class LogSettingsMaxLengthTestCase(BaseLogTestCase):
 
         body = 150 * "0" + "1"
         request = factory.post("/somewhere", data={"file": body})
-        middleware.process_request(request)
+        middleware.process_body(request)
 
         request_body_str = request.body if isinstance(request.body, str) else request.body.decode()
         self._assert_logged(mock_log, re.sub(r'\r?\n', '', request_body_str[:150]))
