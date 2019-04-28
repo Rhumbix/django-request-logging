@@ -9,6 +9,7 @@ except ImportError:
     # Django < 1.10
     from django.core.urlresolvers import resolve, Resolver404
 from django.utils.termcolors import colorize
+from django.views.debug import SafeExceptionReporterFilter
 
 DEFAULT_LOG_LEVEL = logging.DEBUG
 DEFAULT_HTTP_4XX_LOG_LEVEL = logging.ERROR
@@ -95,6 +96,9 @@ class LoggingMiddleware(object):
     def __call__(self, request):
         self.process_request( request )
         response = self.get_response( request )
+        if self._should_log_route(request):
+            logging_context = self._get_logging_context(request, None)
+            self._log_request_body(request, logging_context)
         self.process_response( request, response )
         return response
 
@@ -153,7 +157,6 @@ class LoggingMiddleware(object):
         logging_context = self._get_logging_context(request, None)
         self.logger.log(logging.INFO, method_path, logging_context)
         self._log_request_headers(request, logging_context)
-        self._log_request_body(request, logging_context)
 
     def _log_request_headers(self, request, logging_context):
         headers = {k: v for k, v in request.META.items() if k.startswith('HTTP_')}
@@ -170,7 +173,7 @@ class LoggingMiddleware(object):
             if is_multipart:
                 self._log_multipart(self._chunked_to_max(request.body), logging_context)
             else:
-                self.logger.log(self.log_level, self._chunked_to_max(request.body), logging_context)
+                self.logger.log(self.log_level, SafeExceptionReporterFilter().get_post_parameters(request), logging_context)
 
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
