@@ -163,20 +163,23 @@ class LoggingMiddleware(object):
             self.logger.log(self.log_level, headers, logging_context)
 
     def process_body(self, request):
-        if request.body:
-            if not self._should_log_route(request):
-                logging_context = self._get_logging_context(request, None)
-                content_type = request.META.get('CONTENT_TYPE', '')
-                is_multipart = content_type.startswith('multipart/form-data')
-                if is_multipart:
-                    self.boundary = '--' + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
-                    self._log_multipart(self._chunked_to_max(request.body), logging_context)
-                else:
-                    if request.POST:
-                        safe_body = SafeExceptionReporterFilter().get_post_parameters(request).dict()
-                        self.logger.log(self.log_level, self._chunked_to_max(str(safe_body)), logging_context)
-                    else:
-                        self.logger.log(self.log_level, self._chunked_to_max(request.body), logging_context)
+        if not request.body:
+            return
+        should_skip_logging = self._should_log_route(request)
+        if should_skip_logging:
+            return
+        logging_context = self._get_logging_context(request, None)
+        content_type = request.META.get('CONTENT_TYPE', '')
+        is_multipart = content_type.startswith('multipart/form-data')
+        if is_multipart:
+            self.boundary = '--' + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
+            self._log_multipart(self._chunked_to_max(request.body), logging_context)
+        else:
+            if request.POST:
+                safe_body = SafeExceptionReporterFilter().get_post_parameters(request).dict()
+                self.logger.log(self.log_level, self._chunked_to_max(str(safe_body)), logging_context)
+            else:
+                self.logger.log(self.log_level, self._chunked_to_max(request.body), logging_context)
 
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)

@@ -8,7 +8,7 @@ import mock
 import sys
 from django.conf import settings
 from django.test import RequestFactory, override_settings
-from django.http import HttpResponse, StreamingHttpResponse
+from django.http import HttpResponse, StreamingHttpResponse, QueryDict
 
 import request_logging
 from request_logging.middleware import LoggingMiddleware, DEFAULT_LOG_LEVEL, DEFAULT_COLORIZE, DEFAULT_MAX_BODY_LENGTH,\
@@ -402,6 +402,31 @@ class DecoratorTestCase(BaseLogTestCase):
         request = self.factory.post(uri, data={"file": body})
         self.middleware.process_request(request)
         self._assert_logged(mock_log, uri)
+
+
+@mock.patch.object(request_logging.middleware, "request_logger")
+class DjangoDecoratorTestCase(BaseLogTestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+        def get_response(request):
+            response = mock.MagicMock()
+            response.status_code = 200
+            response.get.return_value = 'application/json'
+            return response
+        self.middleware = LoggingMiddleware(get_response)
+
+    # Because django isn't actually processing this test this test stubbed
+    # out the important parts of what it does which is processes a decorator
+    # like @sensitive_post_parameters('pass__word'), which gets added
+    # to the request object, and then I also created the QueryDict that is
+    # the underlying POST data.
+    def test_log_sensitive_post_parameters(self, mock_log):
+        uri = "/dont_log_sensitive_parameter"
+        request = self.factory.post(uri)
+        request.POST = QueryDict('pass_word=foo')
+        request.sensitive_post_parameters = ["pass_word"]
+        self.middleware.__call__(request)
+        self._assert_not_logged(mock_log, "foo")
 
 
 @mock.patch.object(request_logging.middleware, "request_logger")
