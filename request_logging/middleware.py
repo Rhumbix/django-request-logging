@@ -171,15 +171,17 @@ class LoggingMiddleware(object):
         logging_context = self._get_logging_context(request, None)
         content_type = request.META.get('CONTENT_TYPE', '')
         is_multipart = content_type.startswith('multipart/form-data')
+        to_log = None
         if is_multipart:
             self.boundary = '--' + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
             self._log_multipart(self._chunked_to_max(request.body), logging_context)
+        elif request.POST:
+            to_log = str(SafeExceptionReporterFilter().get_post_parameters(request).dict())
         else:
-            if request.POST:
-                safe_body = SafeExceptionReporterFilter().get_post_parameters(request).dict()
-                self.logger.log(self.log_level, self._chunked_to_max(str(safe_body)), logging_context)
-            else:
-                self.logger.log(self.log_level, self._chunked_to_max(request.body), logging_context)
+            to_log = request.body
+
+        if to_log:
+            self.logger.log(self.log_level, self._chunked_to_max(to_log), logging_context)
 
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
