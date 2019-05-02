@@ -13,15 +13,7 @@ def read(f):
     return open(f, 'r', encoding='utf-8').read()
 
 
-def get_version(package):
-    """
-    Return package version as listed in `__version__` in `init.py`.
-    """
-    init_py = open(os.path.join(package, '__init__.py')).read()
-    return re.search("__version__ = ['\"]([^'\"]+)['\"]", init_py).group(1)
-
-
-version = get_version('rest_framework')
+version = '0.6.8'
 
 
 if sys.argv[-1] == 'publish':
@@ -41,7 +33,7 @@ if sys.argv[-1] == 'publish':
 
 setup(
     name='django-request-logging',
-    version='0.6.8',
+    version=version,
     description='Django middleware that logs http request body.',
     long_description=read('README.md'),
     long_description_content_type='text/markdown',
