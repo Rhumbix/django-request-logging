@@ -9,7 +9,6 @@ except ImportError:
     # Django < 1.10
     from django.core.urlresolvers import resolve, Resolver404
 from django.utils.termcolors import colorize
-from django.views.debug import SafeExceptionReporterFilter
 
 DEFAULT_LOG_LEVEL = logging.DEBUG
 DEFAULT_HTTP_4XX_LOG_LEVEL = logging.ERROR
@@ -96,7 +95,6 @@ class LoggingMiddleware(object):
     def __call__(self, request):
         self.process_request( request )
         response = self.get_response( request )
-        self.process_body(request)
         self.process_response( request, response )
         return response
 
@@ -155,6 +153,7 @@ class LoggingMiddleware(object):
         logging_context = self._get_logging_context(request, None)
         self.logger.log(logging.INFO, method_path, logging_context)
         self._log_request_headers(request, logging_context)
+        self._log_request_body(request, logging_context)
 
     def _log_request_headers(self, request, logging_context):
         headers = {k: v for k, v in request.META.items() if k.startswith('HTTP_')}
@@ -162,26 +161,16 @@ class LoggingMiddleware(object):
         if headers:
             self.logger.log(self.log_level, headers, logging_context)
 
-    def process_body(self, request):
-        if not request.body:
-            return
-        should_skip_logging = self._should_log_route(request)
-        if should_skip_logging:
-            return
-        logging_context = self._get_logging_context(request, None)
-        content_type = request.META.get('CONTENT_TYPE', '')
-        is_multipart = content_type.startswith('multipart/form-data')
-        to_log = None
-        if is_multipart:
-            self.boundary = '--' + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
-            self._log_multipart(self._chunked_to_max(request.body), logging_context)
-        elif request.POST:
-            to_log = str(SafeExceptionReporterFilter().get_post_parameters(request).dict())
-        else:
-            to_log = request.body
-
-        if to_log:
-            self.logger.log(self.log_level, self._chunked_to_max(to_log), logging_context)
+    def _log_request_body(self, request, logging_context):
+        if request.body:
+            content_type = request.META.get('CONTENT_TYPE', '')
+            is_multipart = content_type.startswith('multipart/form-data')
+            if is_multipart:
+                self.boundary = '--' + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
+            if is_multipart:
+                self._log_multipart(self._chunked_to_max(request.body), logging_context)
+            else:
+                self.logger.log(self.log_level, self._chunked_to_max(request.body), logging_context)
 
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
