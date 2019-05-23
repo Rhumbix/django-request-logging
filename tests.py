@@ -8,7 +8,7 @@ import mock
 import sys
 from django.conf import settings
 from django.test import RequestFactory, override_settings
-from django.http import HttpResponse, StreamingHttpResponse, QueryDict
+from django.http import HttpResponse, StreamingHttpResponse
 
 import request_logging
 from request_logging.middleware import LoggingMiddleware, DEFAULT_LOG_LEVEL, DEFAULT_COLORIZE, DEFAULT_MAX_BODY_LENGTH,\
@@ -59,7 +59,6 @@ class MissingRoutes(BaseLogTestCase):
         body = u"some body"
         request = self.factory.post("/a-missing-route-somewhere", data={"file": body})
         self.middleware.process_request(request)
-        self.middleware.process_body(request)
         self._assert_logged(mock_log, body)
 
 
@@ -80,7 +79,6 @@ class LogTestCase(BaseLogTestCase):
         body = u"some body"
         request = self.factory.post("/somewhere", data={"file": body})
         self.middleware.process_request(request)
-        self.middleware.process_body(request)
         self._assert_logged(mock_log, body)
 
     def test_request_binary_logged(self, mock_log):
@@ -88,7 +86,6 @@ class LogTestCase(BaseLogTestCase):
         datafile = io.StringIO(body)
         request = self.factory.post("/somewhere", data={"file": datafile})
         self.middleware.process_request(request)
-        self.middleware.process_body(request)
         self._assert_logged(mock_log, "(binary data)")
 
     def test_request_jpeg_logged(self, mock_log):
@@ -99,7 +96,6 @@ class LogTestCase(BaseLogTestCase):
         datafile = io.BytesIO(body)
         request = self.factory.post("/somewhere", data={"file": datafile})
         self.middleware.process_request(request)
-        self.middleware.process_body(request)
         self._assert_logged(mock_log, "(multipart/form)")
 
     def test_request_headers_logged(self, mock_log):
@@ -320,7 +316,6 @@ class LogSettingsMaxLengthTestCase(BaseLogTestCase):
         body = DEFAULT_MAX_BODY_LENGTH * "0" + "1"
         request = factory.post("/somewhere", data={"file": body})
         middleware.process_request(request)
-        middleware.process_body(request)
 
         request_body_str = request.body if isinstance(request.body, str) else request.body.decode()
         self._assert_logged(mock_log, re.sub(r'\r?\n', '', request_body_str[:DEFAULT_MAX_BODY_LENGTH]))
@@ -334,7 +329,6 @@ class LogSettingsMaxLengthTestCase(BaseLogTestCase):
         body = 150 * "0" + "1"
         request = factory.post("/somewhere", data={"file": body})
         middleware.process_request(request)
-        middleware.process_body(request)
 
         request_body_str = request.body if isinstance(request.body, str) else request.body.decode()
         self._assert_logged(mock_log, re.sub(r'\r?\n', '', request_body_str[:150]))
@@ -404,31 +398,6 @@ class DecoratorTestCase(BaseLogTestCase):
         request = self.factory.post(uri, data={"file": body})
         self.middleware.process_request(request)
         self._assert_logged(mock_log, uri)
-
-
-@mock.patch.object(request_logging.middleware, "request_logger")
-class DjangoDecoratorTestCase(BaseLogTestCase):
-    def setUp(self):
-        self.factory = RequestFactory()
-        def get_response(request):
-            response = mock.MagicMock()
-            response.status_code = 200
-            response.get.return_value = 'application/json'
-            return response
-        self.middleware = LoggingMiddleware(get_response)
-
-    # Because django isn't actually processing this test this test stubbed
-    # out the important parts of what it does which is processes a decorator
-    # like @sensitive_post_parameters('pass__word'), which gets added
-    # to the request object, and then I also created the QueryDict that is
-    # the underlying POST data.
-    def test_log_sensitive_post_parameters(self, mock_log):
-        uri = "/dont_log_sensitive_parameter"
-        request = self.factory.post(uri)
-        request.POST = QueryDict('pass_word=foo')
-        request.sensitive_post_parameters = ["pass_word"]
-        self.middleware.__call__(request)
-        self._assert_not_logged(mock_log, "foo")
 
 
 @mock.patch.object(request_logging.middleware, "request_logger")
