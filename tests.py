@@ -319,6 +319,7 @@ class LogSettingsMaxLengthTestCase(BaseLogTestCase):
 
         body = DEFAULT_MAX_BODY_LENGTH * "0" + "1"
         request = factory.post("/somewhere", data={"file": body})
+        middleware.process_request(request)
         middleware.process_body(request)
 
         request_body_str = request.body if isinstance(request.body, str) else request.body.decode()
@@ -332,6 +333,7 @@ class LogSettingsMaxLengthTestCase(BaseLogTestCase):
 
         body = 150 * "0" + "1"
         request = factory.post("/somewhere", data={"file": body})
+        middleware.process_request(request)
         middleware.process_body(request)
 
         request_body_str = request.body if isinstance(request.body, str) else request.body.decode()

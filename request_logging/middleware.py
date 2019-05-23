@@ -64,7 +64,7 @@ class ColourLogger(Logger):
 class LoggingMiddleware(object):
     def __init__(self, get_response=None):
         self.get_response = get_response
-
+        self._initial_http_body = None
         self.log_level = getattr(settings, SETTING_NAMES['log_level'], DEFAULT_LOG_LEVEL)
         self.http_4xx_log_level = getattr(settings, SETTING_NAMES['http_4xx_log_level'], DEFAULT_HTTP_4XX_LOG_LEVEL)
 
@@ -101,6 +101,7 @@ class LoggingMiddleware(object):
         return response
 
     def process_request(self, request):
+        self._initial_http_body = request.body
         skip_logging_because = self._should_log_route(request)
         if skip_logging_because:
             return self._skip_logging_request(request, skip_logging_because)
@@ -151,7 +152,6 @@ class LoggingMiddleware(object):
 
     def _log_request(self, request):
         method_path = "{} {}".format(request.method, request.get_full_path())
-
         logging_context = self._get_logging_context(request, None)
         self.logger.log(logging.INFO, method_path, logging_context)
         self._log_request_headers(request, logging_context)
@@ -163,7 +163,7 @@ class LoggingMiddleware(object):
             self.logger.log(self.log_level, headers, logging_context)
 
     def process_body(self, request):
-        if not request.body:
+        if not self._initial_http_body:
             return
         should_skip_logging = self._should_log_route(request)
         if should_skip_logging:
@@ -174,11 +174,9 @@ class LoggingMiddleware(object):
         to_log = None
         if is_multipart:
             self.boundary = '--' + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
-            self._log_multipart(self._chunked_to_max(request.body), logging_context)
-        elif request.POST:
-            to_log = str(SafeExceptionReporterFilter().get_post_parameters(request).dict())
+            self._log_multipart(self._chunked_to_max(self._initial_http_body), logging_context)
         else:
-            to_log = request.body
+            to_log = str(SafeExceptionReporterFilter().get_post_parameters(request).dict())
 
         if to_log:
             self.logger.log(self.log_level, self._chunked_to_max(to_log), logging_context)
