@@ -1,4 +1,4 @@
 mock==2.0.0
 django>=1.11.20,<2.3.99
 coverage==4.4.2
-djangorestframework==3.8.2
+djangorestframework==3.10.2
