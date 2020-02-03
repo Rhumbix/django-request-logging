@@ -23,6 +23,12 @@ class BaseLogTestCase(unittest.TestCase):
         text = "".join([call[0][1] for call in calls])
         self.assertIn( expected_entry, text )
 
+    def _assert_logged_with_key_value(self, mock_log, expected_key, expected_value):
+        calls = mock_log.log.call_args_list
+        text = "".join([call[0][1] for call in calls])
+        self.assertIn( expected_key, text)
+        self.assertEqual(expected_value, text.split(expected_key)[1][4:len(expected_value)+4])
+
     def _assert_logged_with_level(self, mock_log, level):
         calls = mock_log.log.call_args_list
         called_levels = set(call[0][0] for call in calls)
@@ -103,6 +109,18 @@ class LogTestCase(BaseLogTestCase):
                                     **{'HTTP_USER_AGENT': 'silly-human'})
         self.middleware.process_request(request)
         self._assert_logged(mock_log, "HTTP_USER_AGENT")
+
+    @override_settings(REQUEST_LOGGING_SENSITIVE_HEADERS=["HTTP_AUTHORIZATION"])
+    def test_request_headers_sensitive_logged(self, mock_log):
+        request = self.factory.post("/somewhere",
+                                    **{'HTTP_AUTHORIZATION': 'sensitive-token', 'HTTP_USER_AGENT': 'silly-human'})
+        middleware = LoggingMiddleware()
+        middleware.process_request(request)
+        self._assert_logged(mock_log, "HTTP_AUTHORIZATION")
+        self._assert_logged(mock_log, "HTTP_USER_AGENT")
+        # check the value of headers
+        self._assert_logged_with_key_value(mock_log, "HTTP_AUTHORIZATION", "*****")
+        self._assert_logged_with_key_value(mock_log, "HTTP_USER_AGENT", 'silly-human')
 
     def test_response_headers_logged(self, mock_log):
         request = self.factory.post("/somewhere")
