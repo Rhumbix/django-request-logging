@@ -14,6 +14,7 @@ DEFAULT_LOG_LEVEL = logging.DEBUG
 DEFAULT_HTTP_4XX_LOG_LEVEL = logging.ERROR
 DEFAULT_COLORIZE = True
 DEFAULT_MAX_BODY_LENGTH = 50000  # log no more than 3k bytes of content
+DEFAULT_SENSITIVE_HEADERS = ['HTTP_AUTHORIZATION', 'HTTP_PROXY_AUTHORIZATION']
 SETTING_NAMES = {
     'log_level': 'REQUEST_LOGGING_DATA_LOG_LEVEL',
     'http_4xx_log_level': 'REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL',
@@ -67,7 +68,7 @@ class LoggingMiddleware(object):
 
         self.log_level = getattr(settings, SETTING_NAMES['log_level'], DEFAULT_LOG_LEVEL)
         self.http_4xx_log_level = getattr(settings, SETTING_NAMES['http_4xx_log_level'], DEFAULT_HTTP_4XX_LOG_LEVEL)
-        self.sensitive_headers = getattr(settings, SETTING_NAMES['sensitive_headers'], [])
+        self.sensitive_headers = getattr(settings, SETTING_NAMES['sensitive_headers'], DEFAULT_SENSITIVE_HEADERS)
         if not isinstance(self.sensitive_headers, list):
             raise ValueError(
                 "{} should be list. {} is not list.".format(SETTING_NAMES['sensitive_headers'], self.sensitive_headers)

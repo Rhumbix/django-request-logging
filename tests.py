@@ -110,17 +110,34 @@ class LogTestCase(BaseLogTestCase):
         self.middleware.process_request(request)
         self._assert_logged(mock_log, "HTTP_USER_AGENT")
 
+    def test_request_headers_sensitive_logged_default(self, mock_log):
+        request = self.factory.post(
+            "/somewhere", **{
+                'HTTP_AUTHORIZATION': 'sensitive-token',
+                'HTTP_PROXY_AUTHORIZATION': 'proxy-token'
+            })
+        middleware = LoggingMiddleware()
+        middleware.process_request(request)
+        self._assert_logged(mock_log, "HTTP_AUTHORIZATION")
+        self._assert_logged(mock_log, "HTTP_PROXY_AUTHORIZATION")
+        self._assert_logged_with_key_value(mock_log, "HTTP_AUTHORIZATION", "*****")
+        self._assert_logged_with_key_value(mock_log, "HTTP_PROXY_AUTHORIZATION", "*****")
+
     @override_settings(REQUEST_LOGGING_SENSITIVE_HEADERS=["HTTP_AUTHORIZATION"])
     def test_request_headers_sensitive_logged(self, mock_log):
         request = self.factory.post("/somewhere",
-                                    **{'HTTP_AUTHORIZATION': 'sensitive-token', 'HTTP_USER_AGENT': 'silly-human'})
+            **{'HTTP_AUTHORIZATION': 'sensitive-token',
+            'HTTP_USER_AGENT': 'silly-human',
+            'HTTP_PROXY_AUTHORIZATION': 'proxy-token'
+            })
         middleware = LoggingMiddleware()
         middleware.process_request(request)
         self._assert_logged(mock_log, "HTTP_AUTHORIZATION")
         self._assert_logged(mock_log, "HTTP_USER_AGENT")
-        # check the value of headers
-        self._assert_logged_with_key_value(mock_log, "HTTP_AUTHORIZATION", "*****")
+        self._assert_logged(mock_log, "HTTP_PROXY_AUTHORIZATION")
+        self._assert_logged_with_key_value(mock_log, "HTTP_AUTHORIZATION", '*****')
         self._assert_logged_with_key_value(mock_log, "HTTP_USER_AGENT", 'silly-human')
+        self._assert_logged_with_key_value(mock_log, "HTTP_PROXY_AUTHORIZATION", 'proxy-token')
 
     def test_response_headers_logged(self, mock_log):
         request = self.factory.post("/somewhere")
