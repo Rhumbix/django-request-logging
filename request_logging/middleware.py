@@ -14,12 +14,14 @@ DEFAULT_LOG_LEVEL = logging.DEBUG
 DEFAULT_HTTP_4XX_LOG_LEVEL = logging.ERROR
 DEFAULT_COLORIZE = True
 DEFAULT_MAX_BODY_LENGTH = 50000  # log no more than 3k bytes of content
+DEFAULT_SENSITIVE_HEADERS = ['HTTP_AUTHORIZATION', 'HTTP_PROXY_AUTHORIZATION']
 SETTING_NAMES = {
     'log_level': 'REQUEST_LOGGING_DATA_LOG_LEVEL',
     'http_4xx_log_level': 'REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL',
     'legacy_colorize': 'REQUEST_LOGGING_DISABLE_COLORIZE',
     'colorize': 'REQUEST_LOGGING_ENABLE_COLORIZE',
     'max_body_length': 'REQUEST_LOGGING_MAX_BODY_LENGTH',
+    'sensitive_headers': 'REQUEST_LOGGING_SENSITIVE_HEADERS',
 }
 BINARY_REGEX = re.compile(r'(.+Content-Type:.*?)(\S+)/(\S+)(?:\r\n)*(.+)', re.S | re.I)
 BINARY_TYPES = ('image', 'application')
@@ -66,6 +68,11 @@ class LoggingMiddleware(object):
 
         self.log_level = getattr(settings, SETTING_NAMES['log_level'], DEFAULT_LOG_LEVEL)
         self.http_4xx_log_level = getattr(settings, SETTING_NAMES['http_4xx_log_level'], DEFAULT_HTTP_4XX_LOG_LEVEL)
+        self.sensitive_headers = getattr(settings, SETTING_NAMES['sensitive_headers'], DEFAULT_SENSITIVE_HEADERS)
+        if not isinstance(self.sensitive_headers, list):
+            raise ValueError(
+                "{} should be list. {} is not list.".format(SETTING_NAMES['sensitive_headers'], self.sensitive_headers)
+            )
 
         for log_attr in ('log_level', 'http_4xx_log_level'):
             level = getattr(self, log_attr)
@@ -156,7 +163,7 @@ class LoggingMiddleware(object):
         self._log_request_body(request, logging_context)
 
     def _log_request_headers(self, request, logging_context):
-        headers = {k: v for k, v in request.META.items() if k.startswith('HTTP_')}
+        headers = {k: v if k not in self.sensitive_headers else '*****' for k, v in request.META.items() if k.startswith('HTTP_')}
 
         if headers:
             self.logger.log(self.log_level, headers, logging_context)
