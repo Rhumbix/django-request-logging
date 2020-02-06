@@ -44,7 +44,7 @@ class UnannotatedDRF(viewsets.ModelViewSet):
 
 
 router = routers.SimpleRouter(trailing_slash=False)
-router.register(r"widgets", UnannotatedDRF, base_name="widget")
+router.register(r"widgets", UnannotatedDRF)
 
 urlpatterns = [
     url(r'^somewhere$', general_resource),
