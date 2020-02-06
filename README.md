@@ -89,3 +89,4 @@ You will need access to the relevant account on Pypi and a recent copy of `twine
 
 - Bump the version value in `request_logging/__init__.py`
 - Run `python setup.py publish`
+- TODO: add automagic `git tag` logic to the publish process
