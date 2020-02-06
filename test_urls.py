@@ -1,8 +1,12 @@
+import sys
+
 from django.conf.urls import url
 from django.http import HttpResponse
 from django.views import View
 from request_logging.decorators import no_logging
 from rest_framework import viewsets, routers
+
+IS_PYTHON_27 = sys.version_info[0] < 3
 
 
 def general_resource(request):
@@ -44,7 +48,16 @@ class UnannotatedDRF(viewsets.ModelViewSet):
 
 
 router = routers.SimpleRouter(trailing_slash=False)
-router.register(r"widgets", UnannotatedDRF, base_name="widget")
+if IS_PYTHON_27:
+    last_arguments = {
+        "base_name": "widgets"
+    }
+else:
+    last_arguments = {
+        "basename": "widgets"
+    }
+
+router.register(r"widgets", UnannotatedDRF, **last_arguments)
 
 urlpatterns = [
     url(r'^somewhere$', general_resource),

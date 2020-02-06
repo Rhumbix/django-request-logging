@@ -40,7 +40,7 @@ if sys.argv[-1] == 'publish':
 
 setup(
     name='django-request-logging',
-    version='0.6.9',
+    version=version,
     description='Django middleware that logs http request body.',
     long_description=read('README.md'),
     long_description_content_type='text/markdown',
