@@ -23,11 +23,13 @@ SETTING_NAMES = {
     'colorize': 'REQUEST_LOGGING_ENABLE_COLORIZE',
     'max_body_length': 'REQUEST_LOGGING_MAX_BODY_LENGTH',
     'sensitive_headers': 'REQUEST_LOGGING_SENSITIVE_HEADERS',
+    'no_logging_get_response': 'REQUEST_NO_LOGGING_GET_RESPONSE',
 }
 BINARY_REGEX = re.compile(r'(.+Content-Type:.*?)(\S+)/(\S+)(?:\r\n)*(.+)', re.S | re.I)
 BINARY_TYPES = ('image', 'application')
 NO_LOGGING_ATTR = 'no_logging'
 NO_LOGGING_MSG = 'No logging for this endpoint'
+NO_LOGGING_GET_RESPONSE = False
 request_logger = logging.getLogger('django.request')
 
 
@@ -100,6 +102,8 @@ class LoggingMiddleware(object):
         self.logger = ColourLogger("cyan", "magenta") if enable_colorize else Logger()
         self.boundary = ''
 
+        self.no_logging_get_response = getattr(settings, SETTING_NAMES['no_logging_get_response'], NO_LOGGING_GET_RESPONSE)
+
     def __call__(self, request):
         self.process_request( request )
         response = self.get_response( request )
@@ -140,11 +144,14 @@ class LoggingMiddleware(object):
         elif hasattr(view, 'view_class'):
             # This is for django class-based views
             func = getattr(view.view_class, method, None)
-        # If method is GET, don't log
-        if method == "get":
-            no_logging = "true"
-        else:
+
+        if not self.no_logging_get_response:
             no_logging = getattr(func, NO_LOGGING_ATTR, None)
+        else:
+            # If method is GET, don't log
+            if method == "get":
+                no_logging = "true"
+
         return no_logging
 
     def _skip_logging_request(self, request, reason):
