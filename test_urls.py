@@ -4,9 +4,10 @@ from django.conf.urls import url
 from django.http import HttpResponse
 from django.views import View
 from request_logging.decorators import no_logging
-from rest_framework import viewsets, routers
+from rest_framework import viewsets, routers, VERSION
 
-IS_PYTHON_27 = sys.version_info[0] < 3
+# DRF 3.8.2 is used in python versions 3.4 and older, which needs special handling
+IS_DRF_382 = sys.version_info <= (3, 4)
 
 
 def general_resource(request):
@@ -51,7 +52,7 @@ class UnannotatedDRF(viewsets.ModelViewSet):
 
 
 router = routers.SimpleRouter(trailing_slash=False)
-if IS_PYTHON_27:
+if IS_DRF_382:
     last_arguments = {
         "base_name": "widgets"
     }
