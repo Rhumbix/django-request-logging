@@ -31,6 +31,9 @@ def view_func(request):
 def view_msg(request):
     return HttpResponse(status=200, body="view_msg with no logging with a custom reason why")
 
+@no_logging(silent=True)
+def dont_log_silent(request):
+    return HttpResponse(status=200, body="view_msg with silent flag set")
 
 @no_logging('Empty response body')
 def dont_log_empty_response_body(request):
@@ -65,4 +68,5 @@ urlpatterns = [
     url(r'^test_func$', view_func),
     url(r'^test_msg$', view_msg),
     url(r'^dont_log_empty_response_body$', dont_log_empty_response_body),
+    url(r'^dont_log_silent$', dont_log_silent),
 ] + router.urls

@@ -26,6 +26,7 @@ SETTING_NAMES = {
 BINARY_REGEX = re.compile(r'(.+Content-Type:.*?)(\S+)/(\S+)(?:\r\n)*(.+)', re.S | re.I)
 BINARY_TYPES = ('image', 'application')
 NO_LOGGING_ATTR = 'no_logging'
+NO_LOGGING_MSG_ATTR = 'no_logging_msg'
 NO_LOGGING_MSG = 'No logging for this endpoint'
 request_logger = logging.getLogger('django.request')
 
@@ -106,9 +107,10 @@ class LoggingMiddleware(object):
         return response
 
     def process_request(self, request):
-        skip_logging_because = self._should_log_route(request)
-        if skip_logging_because:
-            return self._skip_logging_request(request, skip_logging_because)
+        skip_logging, because = self._should_log_route(request)
+        if skip_logging:
+            if because is not None:
+                return self._skip_logging_request(request, because)
         else:
             return self._log_request(request)
 
@@ -122,7 +124,7 @@ class LoggingMiddleware(object):
         try:
             route_match = resolve(request.path, urlconf=urlconf)
         except Resolver404:
-            return None
+            return False, None
 
         method = request.method.lower()
         view = route_match.func
@@ -139,8 +141,9 @@ class LoggingMiddleware(object):
         elif hasattr(view, 'view_class'):
             # This is for django class-based views
             func = getattr(view.view_class, method, None)
-        no_logging = getattr(func, NO_LOGGING_ATTR, None)
-        return no_logging
+        no_logging = getattr(func, NO_LOGGING_ATTR, False)
+        no_logging_msg = getattr(func, NO_LOGGING_MSG_ATTR, None)
+        return no_logging, no_logging_msg
 
     def _skip_logging_request(self, request, reason):
         method_path = "{} {}".format(request.method, request.get_full_path())
@@ -181,9 +184,10 @@ class LoggingMiddleware(object):
 
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
-        skip_logging_because = self._should_log_route(request)
-        if skip_logging_because:
-            self.logger.log_error(logging.INFO, resp_log, {'args': {}, 'kwargs': { 'extra' :  { 'no_logging': skip_logging_because } }})
+        skip_logging, because = self._should_log_route(request)
+        if skip_logging:
+            if because is not None:
+                self.logger.log_error(logging.INFO, resp_log, {'args': {}, 'kwargs': { 'extra' :  { 'no_logging': because } }})
             return response
         logging_context = self._get_logging_context(request, response)
 
