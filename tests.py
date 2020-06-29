@@ -405,6 +405,14 @@ class DecoratorTestCase(BaseLogTestCase):
         self._assert_not_logged(mock_log, NO_LOGGING_MSG)
         self._assert_logged(mock_log, 'Custom message')
 
+    def test_no_logging_decorator_silent(self, mock_log):
+        body = u"some super secret body"
+        request = self.factory.post("/dont_log_silent", data={"file": body})
+        self.middleware.process_request(request)
+        self._assert_not_logged(mock_log, body)
+        self._assert_not_logged(mock_log, NO_LOGGING_MSG)
+        self._assert_not_logged(mock_log, 'not logged because')
+
     def test_no_logging_empty_response_body(self, mock_log):
         body = u"our work of art"
         request = self.factory.post("/dont_log_empty_response_body", data={"file": body})

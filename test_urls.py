@@ -4,9 +4,10 @@ from django.conf.urls import url
 from django.http import HttpResponse
 from django.views import View
 from request_logging.decorators import no_logging
-from rest_framework import viewsets, routers
+from rest_framework import viewsets, routers, VERSION
 
-IS_PYTHON_27 = sys.version_info[0] < 3
+# DRF 3.8.2 is used in python versions 3.4 and older, which needs special handling
+IS_DRF_382 = sys.version_info <= (3, 4)
 
 
 def general_resource(request):
@@ -31,6 +32,9 @@ def view_func(request):
 def view_msg(request):
     return HttpResponse(status=200, body="view_msg with no logging with a custom reason why")
 
+@no_logging(silent=True)
+def dont_log_silent(request):
+    return HttpResponse(status=200, body="view_msg with silent flag set")
 
 @no_logging('Empty response body')
 def dont_log_empty_response_body(request):
@@ -48,7 +52,7 @@ class UnannotatedDRF(viewsets.ModelViewSet):
 
 
 router = routers.SimpleRouter(trailing_slash=False)
-if IS_PYTHON_27:
+if IS_DRF_382:
     last_arguments = {
         "base_name": "widgets"
     }
@@ -65,4 +69,5 @@ urlpatterns = [
     url(r'^test_func$', view_func),
     url(r'^test_msg$', view_msg),
     url(r'^dont_log_empty_response_body$', dont_log_empty_response_body),
+    url(r'^dont_log_silent$', dont_log_silent),
 ] + router.urls
