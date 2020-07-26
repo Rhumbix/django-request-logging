@@ -55,6 +55,10 @@ See `REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL` setting to override this.
 
 A `no_logging` decorator is included for views with sensitive data.
 
+An `opt_into_logging` decorator is included to always log requests + response for a view regardless of what's returned for `REQUEST_LOGGING_OPT_IN_CONDITIONAL` or `RESPONSE_LOGGING_OPT_IN_CONDITIONAL`.
+
+**Note:** attempting to wrap a method in both `no_logging` and `opt_into_logging` will raise an exception.
+
 By default, value of Http headers `HTTP_AUTHORIZATION` and `HTTP_PROXY_AUTHORIZATION` are replaced wih `*****`. You can use `REQUEST_LOGGING_SENSITIVE_HEADERS` setting to override this default behaviour with your list of sensitive headers.
 
 ## Django settings
@@ -74,12 +78,33 @@ If you set `REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL=logging.INFO` they will be logged
 ### REQUEST_LOGGING_SENSITIVE_HEADERS
 The value of the headers defined in this settings will be replaced with `'*****'` to hide the sensitive information while logging. E.g. `REQUEST_LOGGING_SENSITIVE_HEADERS = ['HTTP_AUTHORIZATION', 'HTTP_USER_AGENT']`
 
+### REQUEST_LOGGING_OPT_IN_CONDITIONAL
+A function called with the `request` object. Should return a boolean, for example, to turn off all logging for all requests:
+
+```python
+REQUEST_LOGGING_OPT_IN_CONDITIONAL = lambda request: False
+```
+
+Or to log only requests on the path `/my/path`:
+
+```python
+REQUEST_LOGGING_OPT_IN_CONDITIONAL = lambda request: request.get_full_path() == "/my/path"
+```
+
+### RESPONSE_LOGGING_OPT_IN_CONDITIONAL
+A function called with the `request` object. Should return a boolean, for example, to only log a response with a status code above 400:
+
+```python
+RESPONSE_LOGGING_OPT_IN_CONDITIONAL = lambda response: response.status_code > 400
+```
+
+
 
 ## Deploying, Etc.
 
 ### Maintenance
 
-Use `pyenv` to maintain a set of virtualenvs for 2.7 and a couple versions of Python 3. 
+Use `pyenv` to maintain a set of virtualenvs for 2.7 and a couple versions of Python 3.
 Make sure the `requirements-dev.txt` installs for all of them, at least until we give up on 2.7.
 At that point, update this README to let users know the last version they can use with 2.7.
 
@@ -93,17 +118,17 @@ At that point, update this README to let users know the last version they can us
     index-servers=
         testpypi
         pypi
-    
+
     [testpypi]
     username = rhumbix
     password = password for dev@rhumbix.com at Pypi
-    
+
     [pypi]
     username = rhumbix
     password = password for dev@rhumbix.com at Pypi
 ```
 
-### Publishing  
+### Publishing
 
 - Bump the version value in `request_logging/__init__.py`
 - Run `python setup.py publish`

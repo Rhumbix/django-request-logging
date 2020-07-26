@@ -2,8 +2,9 @@ import sys
 
 from django.conf.urls import url
 from django.http import HttpResponse
+from django.http import request
 from django.views import View
-from request_logging.decorators import no_logging
+from request_logging.decorators import no_logging, opt_into_logging
 from rest_framework import viewsets, routers, VERSION
 
 # DRF 3.8.2 is used in python versions 3.4 and older, which needs special handling
@@ -27,6 +28,11 @@ class TestView(View):
 def view_func(request):
     return HttpResponse(status=200, body="view_func with no logging")
 
+def ok(request):
+    return HttpResponse(status=200, body="OK")
+
+def internal_server_error(request):
+    return HttpResponse(status=500, body="Internal Server Error")
 
 @no_logging('Custom message')
 def view_msg(request):
@@ -39,7 +45,6 @@ def dont_log_silent(request):
 @no_logging('Empty response body')
 def dont_log_empty_response_body(request):
     return HttpResponse(status=201)
-
 
 class UnannotatedDRF(viewsets.ModelViewSet):
     @no_logging("DRF explicit annotation")
@@ -70,4 +75,6 @@ urlpatterns = [
     url(r'^test_msg$', view_msg),
     url(r'^dont_log_empty_response_body$', dont_log_empty_response_body),
     url(r'^dont_log_silent$', dont_log_silent),
+    url(r'^ok$', ok),
+    url(r'^internal_server_error$', internal_server_error),
 ] + router.urls

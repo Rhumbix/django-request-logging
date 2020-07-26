@@ -142,6 +142,7 @@ class LogTestCase(BaseLogTestCase):
     def test_response_headers_logged(self, mock_log):
         request = self.factory.post("/somewhere")
         response = mock.MagicMock()
+        response.status_code = 200
         response.get.return_value = 'application/json'
         response._headers = {'test_headers': 'test_headers'}
         self.middleware.process_response(request, response)
@@ -206,6 +207,7 @@ class LoggingContextTestCase(BaseLogTestCase):
     def test_response_logging_context(self, mock_log):
         request = self.factory.post("/somewhere")
         response = mock.MagicMock()
+        response.status_code = 200
         response.get.return_value = 'application/json'
         response._headers = {'test_headers': 'test_headers'}
         self.middleware.process_response(request, response)
@@ -442,7 +444,6 @@ class DecoratorTestCase(BaseLogTestCase):
         self.middleware.process_request(request)
         self._assert_logged(mock_log, uri)
 
-
 @mock.patch.object(request_logging.middleware, "request_logger")
 class DRFTestCase(BaseLogTestCase):
     def setUp(self):
@@ -471,6 +472,49 @@ class DRFTestCase(BaseLogTestCase):
         self.middleware.process_request(request)
         self._assert_not_logged(mock_log, "almost")
         self._assert_not_logged(mock_log, "had you")
+
+
+@mock.patch.object(request_logging.middleware, "request_logger")
+class LoggingOptInTestCase(BaseLogTestCase):
+    def setUp(self):
+        from django.urls import set_urlconf
+        set_urlconf('test_urls')
+        self.factory = RequestFactory()
+
+    def test_opt_into_logging_conditionals(self, mock_log):
+        def test_request_conditional(request):
+            return request.get_full_path() == "/ok"
+
+        def test_response_conditional(request):
+            return response.status_code == 418
+
+        with override_settings(
+            REQUEST_LOGGING_OPT_IN_CONDITIONAL=test_request_conditional,
+            RESPONSE_LOGGING_OPT_IN_CONDITIONAL=test_response_conditional,
+        ):
+            body = u"some super secret body"
+            request = self.factory.post("/ok", data={"file": body})
+            LoggingMiddleware().process_request(request)
+
+            self._assert_logged(mock_log, "file")
+            self._assert_logged(mock_log, "body")
+
+            mock_log.reset_mock()
+
+            request = self.factory.post("/internal_server_error", data={"foo": "bar"})
+            LoggingMiddleware().process_request(request)
+            response = mock.MagicMock()
+            response.status_code = 418
+            response.content = "bazqux"
+            response.get.return_value = "application/json"
+            response._headers = {'test_headers': 'test_headers'}
+            response.streaming = False
+            LoggingMiddleware().process_response(request, response)
+
+            self._assert_not_logged(mock_log, "foo")
+            self._assert_not_logged(mock_log, "bar")
+            self._assert_logged(mock_log, response.content)
+
 
 
 if __name__ == '__main__':

@@ -1,10 +1,37 @@
 from functools import wraps
-from .middleware import NO_LOGGING_ATTR, NO_LOGGING_MSG_ATTR, NO_LOGGING_MSG
+from .middleware import (
+    NO_LOGGING_FUNCS,
+    OPT_INTO_LOGGING_FUNCS,
+    NO_LOGGING_MSG,
+)
 
 
-def no_logging(msg=None, silent=False):
-    def wrapper(func):
-        setattr(func, NO_LOGGING_ATTR, True)
-        setattr(func, NO_LOGGING_MSG_ATTR, (msg if msg else NO_LOGGING_MSG) if not silent else None)
+class DjangoRequestsCollidingDecorators(Exception):
+    pass
+
+
+def no_logging(msg=None, silent=False): # type: (str, bool) -> Callable[..., Any]
+    def wrapper(func): # type: Callable[..., Any]
+        if not silent:
+            no_logging_message = msg if msg else NO_LOGGING_MSG
+        else:
+            no_logging_message = None
+
+        NO_LOGGING_FUNCS[func] = no_logging_message
+
+        if func in OPT_INTO_LOGGING_FUNCS:
+            raise DjangoRequestsCollidingDecorators
+
         return func
+
     return wrapper
+
+
+def opt_into_logging(func):  # type: (Callable[..., Any]) -> Callable[..., Any]
+    # No need to ensure decorators do not collide, it happens within each
+    # conditional annotation method
+    OPT_INTO_LOGGING_FUNCS.add(func)
+    if func in NO_LOGGING_FUNCS:
+        raise DjangoRequestsCollidingDecorators
+
+    return func
