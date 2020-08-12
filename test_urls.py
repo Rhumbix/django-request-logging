@@ -28,6 +28,7 @@ class TestView(View):
 def view_func(request):
     return HttpResponse(status=200, body="view_func with no logging")
 
+@opt_into_logging
 def ok(request):
     return HttpResponse(status=200, body="OK")
 

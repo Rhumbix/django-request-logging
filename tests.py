@@ -516,7 +516,58 @@ class LoggingOptInTestCase(BaseLogTestCase):
             self._assert_not_logged(mock_log, "bar")
             self._assert_logged(mock_log, response.content)
 
+    def test_opt_into_logging_decorator(self, mock_log):
+        """
+        By default, disable logging ALL paths, but use the opted in /ok path to make
+        sure we log requests + responses on user opt-in.
+        """
+        with override_settings(
+            REQUEST_LOGGING_USE_LEGACY_RESPONSE_LOGGING_LOGIC=False,
+            REQUEST_LOGGING_OPT_IN_CONDITIONAL=lambda request: False,
+            RESPONSE_LOGGING_OPT_IN_CONDITIONAL=lambda response: False,
+        ):
+            # /ok was opted in, make sure that we log it
+            body = u"some super secret body"
+            request = self.factory.post("/ok", data={"file": body})
+            LoggingMiddleware().process_request(request)
 
+            self._assert_logged(mock_log, "file")
+            self._assert_logged(mock_log, "body")
+
+            mock_log.reset_mock()
+
+            LoggingMiddleware().process_request(request)
+            response = mock.MagicMock()
+            response.status_code = 418
+            response.content = "bazqux"
+            response.get.return_value = "application/json"
+            response._headers = {'test_headers': 'test_headers'}
+            response.streaming = False
+
+            LoggingMiddleware().process_request(request)
+            LoggingMiddleware().process_response(request, response)
+
+            self._assert_logged(mock_log, "file")
+            self._assert_logged(mock_log, "body")
+            self._assert_logged(mock_log, response.content)
+
+
+            # Non-opted in endpoint, nothing should be logged
+            mock_log.reset_mock()
+
+            request = self.factory.post("/internal_server_error", data={"foo": "bar"})
+            LoggingMiddleware().process_request(request)
+            response = mock.MagicMock()
+            response.status_code = 418
+            response.content = "bazqux"
+            response.get.return_value = "application/json"
+            response._headers = {'test_headers': 'test_headers'}
+            response.streaming = False
+            LoggingMiddleware().process_response(request, response)
+
+            self._assert_not_logged(mock_log, "foo")
+            self._assert_not_logged(mock_log, "bar")
+            self._assert_not_logged(mock_log, response.content)
 
 if __name__ == '__main__':
     unittest.main()
