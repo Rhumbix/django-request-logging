@@ -3,6 +3,7 @@ from .middleware import (
     NO_LOGGING_FUNCS,
     OPT_INTO_LOGGING_FUNCS,
     NO_LOGGING_MSG,
+    NoLogging,
 )
 
 
@@ -12,12 +13,8 @@ class DjangoRequestsCollidingDecorators(Exception):
 
 def no_logging(msg=None, silent=False): # type: (str, bool) -> Callable[..., Any]
     def wrapper(func): # type: Callable[..., Any]
-        if not silent:
-            no_logging_message = msg if msg else NO_LOGGING_MSG
-        else:
-            no_logging_message = None
-
-        NO_LOGGING_FUNCS[func] = no_logging_message
+        no_logging_message = msg if msg else NO_LOGGING_MSG
+        NO_LOGGING_FUNCS[func] = NoLogging(message=no_logging_message, silent=silent)
 
         if func in OPT_INTO_LOGGING_FUNCS:
             raise DjangoRequestsCollidingDecorators

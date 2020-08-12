@@ -2,6 +2,7 @@ from collections import namedtuple
 import logging
 from logging import warn
 import re
+from types import SimpleNamespace
 import warnings
 
 from django.conf import settings
@@ -48,10 +49,11 @@ BINARY_TYPES = ('image', 'application')
 NO_LOGGING_MSG = 'No logging for this endpoint'
 request_logger = logging.getLogger('django.request')
 
-NO_LOGGING_FUNCS = {} # type: Dict[Callable[..., Any], Optional[str]]
+NoLogging = namedtuple("NoLogging", ["message", "silent"])
+NO_LOGGING_FUNCS = {} # type: Dict[Callable[..., Any], NoLogging]
 OPT_INTO_LOGGING_FUNCS = set() # type: Set[Callable[..., Any]]
 
-ShouldLogRoute = namedtuple("ShouldLogRoute", ["log_route", "skip_reason"])
+ShouldLogRoute = namedtuple("ShouldLogRoute", ["log_route", "skip_reason", "silent"])
 
 
 class Logger:
@@ -156,11 +158,11 @@ class LoggingMiddleware(object):
 
     def process_request(self, request):
         should_log_route = self._should_log_route(request)
-        if not should_log_route.log_route or should_log_route.skip_reason is not None:
+        if (not should_log_route.log_route or should_log_route.skip_reason is not None) and not should_log_route.silent:
             skip_reason = should_log_route.skip_reason or ""
             return self._skip_logging_request(request, skip_reason)
-
-        return self._log_request(request)
+        elif should_log_route.log_route:
+            return self._log_request(request)
 
     def _get_api_func(self, request):
         # request.urlconf may be set by middleware or application level code.
@@ -195,12 +197,13 @@ class LoggingMiddleware(object):
     def _should_log_route(self, request):
         func = self._get_api_func(request)
         if func in OPT_INTO_LOGGING_FUNCS:
-            return ShouldLogRoute(log_route=True, skip_reason=None)
+            return ShouldLogRoute(log_route=True, skip_reason=None, silent=False)
 
         if func in NO_LOGGING_FUNCS:
-            return ShouldLogRoute(log_route=False, skip_reason=NO_LOGGING_FUNCS.get(func, None))
+            no_logging = NO_LOGGING_FUNCS[func]
+            return ShouldLogRoute(log_route=False, skip_reason=no_logging.message, silent=no_logging.silent)
 
-        return ShouldLogRoute(log_route=self.logging_opt_in_defaults[REQUEST](request), skip_reason=None)
+        return ShouldLogRoute(log_route=self.logging_opt_in_defaults[REQUEST](request), skip_reason=None, silent=False)
 
     def _skip_logging_request(self, request, reason):
         method_path = "{} {}".format(request.method, request.get_full_path())
@@ -245,8 +248,8 @@ class LoggingMiddleware(object):
 
         should_log_route = self._should_log_route(request)
         should_log_response = self.logging_opt_in_defaults[RESPONSE](response) or api_func in OPT_INTO_LOGGING_FUNCS
-        if not should_log_route.log_route:
-            if should_log_route.skip_reason is not None:
+        if not should_log_route.log_route or should_log_route.skip_reason is not None:
+            if not should_log_route.silent:
                 self.logger.log_error(logging.INFO, resp_log, {'args': {}, 'kwargs': { 'extra' :  { 'no_logging': should_log_route.skip_reason } }})
 
             if not should_log_response or self.use_legacy_response_logging:
