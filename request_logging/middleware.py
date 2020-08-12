@@ -133,11 +133,11 @@ class LoggingMiddleware(object):
 
     def process_request(self, request):
         should_log_route = self._should_log_route(request)
-        if not should_log_route.log_route:
-            if should_log_route.skip_reason is not None:
-                return self._skip_logging_request(request, should_log_route.skip_reason)
-        else:
-            return self._log_request(request)
+        if not should_log_route.log_route or should_log_route.skip_reason is not None:
+            skip_reason = should_log_route.skip_reason or ""
+            return self._skip_logging_request(request, skip_reason)
+
+        return self._log_request(request)
 
     def _get_api_func(self, request):
         # request.urlconf may be set by middleware or application level code.
