@@ -1,6 +1,8 @@
 from collections import namedtuple
 import logging
+from logging import warn
 import re
+import warnings
 
 from django.conf import settings
 
@@ -38,7 +40,8 @@ SETTING_NAMES = {
     'logging_opt_in': {
         REQUEST: 'REQUEST_LOGGING_OPT_IN_CONDITIONAL',
         RESPONSE: 'RESPONSE_LOGGING_OPT_IN_CONDITIONAL',
-    }
+    },
+    'use_legacy_response_logging': 'REQUEST_LOGGING_USE_LEGACY_RESPONSE_LOGGING_LOGIC',
 }
 BINARY_REGEX = re.compile(r'(.+Content-Type:.*?)(\S+)/(\S+)(?:\r\n)*(.+)', re.S | re.I)
 BINARY_TYPES = ('image', 'application')
@@ -84,6 +87,8 @@ class ColourLogger(Logger):
 
 
 class LoggingMiddleware(object):
+    DEPRECATION_WARNING_HAS_OCCURRED = False
+
     def __init__(self, get_response=None):
         self.get_response = get_response
 
@@ -94,6 +99,24 @@ class LoggingMiddleware(object):
             REQUEST: getattr(settings, SETTING_NAMES['logging_opt_in'][REQUEST], _true),
             RESPONSE: getattr(settings, SETTING_NAMES['logging_opt_in'][RESPONSE], _true),
         }
+
+        if (
+            not hasattr(settings, SETTING_NAMES['use_legacy_response_logging'])
+            and not self.__class__.DEPRECATION_WARNING_HAS_OCCURRED
+        ):
+            self.__class__.DEPRECATION_WARNING_HAS_OCCURRED = True
+            warnings.warn(
+                (
+                    "Response logging was historically based on request logging, this behaviour "
+                    "is deprecated and responses will eventually be logged independently from "
+                    "requests by default. To keep legacy behavior, set "
+                    "REQUEST_LOGGING_USE_LEGACY_RESPONSE_LOGGING_LOGIC to True within your app "
+                    "settings."
+                ),
+                DeprecationWarning
+            )
+        self.use_legacy_response_logging = getattr(settings, SETTING_NAMES['use_legacy_response_logging'], True)
+
 
         if not isinstance(self.sensitive_headers, list):
             raise ValueError(
@@ -226,7 +249,7 @@ class LoggingMiddleware(object):
             if should_log_route.skip_reason is not None:
                 self.logger.log_error(logging.INFO, resp_log, {'args': {}, 'kwargs': { 'extra' :  { 'no_logging': should_log_route.skip_reason } }})
 
-            if not should_log_response:
+            if not should_log_response or self.use_legacy_response_logging:
                 return response
 
         if should_log_response:
