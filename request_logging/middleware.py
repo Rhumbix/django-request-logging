@@ -42,7 +42,7 @@ SETTING_NAMES = {
         REQUEST: 'REQUEST_LOGGING_OPT_IN_CONDITIONAL',
         RESPONSE: 'RESPONSE_LOGGING_OPT_IN_CONDITIONAL',
     },
-    'use_legacy_response_logging': 'REQUEST_LOGGING_USE_LEGACY_RESPONSE_LOGGING_LOGIC',
+    'use_legacy_response_logging': 'REQUEST_LOGGING_ONLY_LOG_RESPONSE_IF_REQUEST_LOGGED',
 }
 BINARY_REGEX = re.compile(r'(.+Content-Type:.*?)(\S+)/(\S+)(?:\r\n)*(.+)', re.S | re.I)
 BINARY_TYPES = ('image', 'application')
@@ -112,7 +112,7 @@ class LoggingMiddleware(object):
                     "Response logging was historically based on request logging, this behaviour "
                     "is deprecated and responses will eventually be logged independently from "
                     "requests by default. To keep legacy behavior, set "
-                    "REQUEST_LOGGING_USE_LEGACY_RESPONSE_LOGGING_LOGIC to True within your app "
+                    "REQUEST_LOGGING_ONLY_LOG_RESPONSE_IF_REQUEST_LOGGED to True within your app "
                     "settings."
                 ),
                 DeprecationWarning

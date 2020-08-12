@@ -489,7 +489,7 @@ class LoggingOptInTestCase(BaseLogTestCase):
             return response.status_code == 418
 
         with override_settings(
-            REQUEST_LOGGING_USE_LEGACY_RESPONSE_LOGGING_LOGIC=False,
+            REQUEST_LOGGING_ONLY_LOG_RESPONSE_IF_REQUEST_LOGGED=False,
             REQUEST_LOGGING_OPT_IN_CONDITIONAL=test_request_conditional,
             RESPONSE_LOGGING_OPT_IN_CONDITIONAL=test_response_conditional,
         ):
@@ -522,7 +522,7 @@ class LoggingOptInTestCase(BaseLogTestCase):
         sure we log requests + responses on user opt-in.
         """
         with override_settings(
-            REQUEST_LOGGING_USE_LEGACY_RESPONSE_LOGGING_LOGIC=False,
+            REQUEST_LOGGING_ONLY_LOG_RESPONSE_IF_REQUEST_LOGGED=False,
             REQUEST_LOGGING_OPT_IN_CONDITIONAL=lambda request: False,
             RESPONSE_LOGGING_OPT_IN_CONDITIONAL=lambda response: False,
         ):

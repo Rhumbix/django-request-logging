@@ -98,6 +98,9 @@ A function called with the `request` object. Should return a boolean, for exampl
 RESPONSE_LOGGING_OPT_IN_CONDITIONAL = lambda response: response.status_code > 400
 ```
 
+### REQUEST_LOGGING_ONLY_LOG_RESPONSE_IF_REQUEST_LOGGED
+Prior to August 2020, responses were only logged if a request was also logged for a given route. With the introduction of independent request & response logging conditionals, this behavior was broken. If you wish to only log responses when a request is logged, set this setting to `True`. As of August 2020, this setting will default to `True` and a deprecation warning will be raised if it is not present in your settings.
+
 
 
 ## Deploying, Etc.
