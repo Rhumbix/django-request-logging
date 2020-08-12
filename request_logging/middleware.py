@@ -229,25 +229,33 @@ class LoggingMiddleware(object):
             if not should_log_response:
                 return response
 
-        logging_context = self._get_logging_context(request, response)
         if should_log_response:
             # Either the response is opted-in to logging by default or we've
             # conditionally selected the response to be logged. Regardless, log it!
-            if 400 <= response.status_code < 500:
-                if self.http_4xx_log_level == DEFAULT_HTTP_4XX_LOG_LEVEL:
-                    # default, log as per 5xx
-                    self.logger.log_error(logging.INFO, resp_log, logging_context)
-                    self._log_resp(logging.ERROR, response, logging_context)
-                else:
-                    self.logger.log(self.http_4xx_log_level, resp_log, logging_context)
-                    self._log_resp(self.log_level, response, logging_context)
-            elif 500 <= response.status_code < 600:
-                self.logger.log_error(logging.INFO, resp_log, logging_context)
+            self._log_response_based_on_status_code(
+                request=request,
+                response=response,
+                response_log_message=resp_log
+            )
+
+        return response
+
+    def _log_response_based_on_status_code(self, request, response, response_log_message):
+        logging_context = self._get_logging_context(request, response)
+        if 400 <= response.status_code < 500:
+            if self.http_4xx_log_level == DEFAULT_HTTP_4XX_LOG_LEVEL:
+                # default, log as per 5xx
+                self.logger.log_error(logging.INFO, response_log_message, logging_context)
                 self._log_resp(logging.ERROR, response, logging_context)
             else:
-                self.logger.log(logging.INFO, resp_log, logging_context)
+                self.logger.log(self.http_4xx_log_level, response_log_message, logging_context)
                 self._log_resp(self.log_level, response, logging_context)
-        return response
+        elif 500 <= response.status_code < 600:
+            self.logger.log_error(logging.INFO, response_log_message, logging_context)
+            self._log_resp(logging.ERROR, response, logging_context)
+        else:
+            self.logger.log(logging.INFO, response_log_message, logging_context)
+            self._log_resp(self.log_level, response, logging_context)
 
     def _get_logging_context(self, request, response):
         """
