@@ -1,8 +1,6 @@
 from collections import namedtuple
 import logging
-from logging import warn
 import re
-from types import SimpleNamespace
 import warnings
 
 from django.conf import settings
