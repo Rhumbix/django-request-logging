@@ -32,7 +32,7 @@ class BaseLogTestCase(unittest.TestCase):
         calls = mock_log.log.call_args_list
         text = "".join([call[0][1] for call in calls])
         self.assertIn(expected_key, text)
-        self.assertEqual(expected_value, text.split(expected_key)[1][4:len(expected_value) + 4])
+        self.assertEqual(expected_value, text.split(expected_key)[1][4 : len(expected_value) + 4])
 
     def _assert_logged_with_level(self, mock_log, level):
         calls = mock_log.log.call_args_list
@@ -468,6 +468,53 @@ class DRFTestCase(BaseLogTestCase):
         self.middleware.process_request(request)
         self._assert_not_logged(mock_log, "almost")
         self._assert_not_logged(mock_log, "had you")
+
+
+@mock.patch.object(request_logging.middleware, "request_logger")
+class LogRequestAtDifferentLevelsTestCase(BaseLogTestCase):
+    def setUp(self):
+        from django.urls import set_urlconf
+
+        set_urlconf("test_urls")
+        self.factory = RequestFactory()
+
+        self.request_200 = self.factory.get("/fine-thank-you")
+        self.response_200 = mock.MagicMock()
+        self.response_200.status_code = 200
+        self.response_200.get.return_value = "application/json"
+        self.response_200._headers = {"test_headers": "test_headers"}
+
+        self.request_404 = self.factory.get("/not-a-valid-url")
+        self.response_404 = mock.MagicMock()
+        self.response_404.status_code = 404
+        self.response_404.get.return_value = "application/json"
+        self.response_404._headers = {"test_headers": "test_headers"}
+
+        self.request_500 = self.factory.get("/bug")
+        self.response_500 = mock.MagicMock()
+        self.response_500.status_code = 500
+        self.response_500.get.return_value = "application/json"
+        self.response_500._headers = {"test_headers": "test_headers"}
+
+    def test_log_request_200(self, mock_log):
+        mock_log.reset_mock()
+        middleware = LoggingMiddleware()
+        middleware.process_request(self.request_200, self.response_200)
+        self._assert_logged_with_level(mock_log, DEFAULT_LOG_LEVEL)
+
+    def test_log_request_404_as_4xx(self, mock_log):
+        for level in (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR):
+            mock_log.reset_mock()
+            with override_settings(REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL=level):
+                middleware = LoggingMiddleware()
+                middleware.process_request(self.request_404, self.response_404)
+                self._assert_logged_with_level(mock_log, level)
+
+    def test_log_request_500_as_error(self, mock_log):
+        mock_log.reset_mock()
+        middleware = LoggingMiddleware()
+        middleware.process_request(self.request_500, self.response_500)
+        self._assert_logged_with_level(mock_log, logging.ERROR)
 
 
 if __name__ == "__main__":
