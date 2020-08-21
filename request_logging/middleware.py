@@ -108,18 +108,18 @@ class LoggingMiddleware(object):
         self.boundary = ""
 
     def __call__(self, request):
-        self.process_request(request)
         response = self.get_response(request)
+        self.process_request(request, response)
         self.process_response(request, response)
         return response
 
-    def process_request(self, request):
+    def process_request(self, request, response=None):
         skip_logging, because = self._should_log_route(request)
         if skip_logging:
             if because is not None:
                 return self._skip_logging_request(request, because)
         else:
-            return self._log_request(request)
+            return self._log_request(request, response)
 
     def _should_log_route(self, request):
         # request.urlconf may be set by middleware or application level code.
@@ -160,15 +160,23 @@ class LoggingMiddleware(object):
         }
         self.logger.log(logging.INFO, method_path + " (not logged because '" + reason + "')", no_log_context)
 
-    def _log_request(self, request):
+    def _log_request(self, request, response):
         method_path = "{} {}".format(request.method, request.get_full_path())
-
         logging_context = self._get_logging_context(request, None)
-        self.logger.log(logging.INFO, method_path, logging_context)
-        self._log_request_headers(request, logging_context)
-        self._log_request_body(request, logging_context)
 
-    def _log_request_headers(self, request, logging_context):
+        # Determine log level depending on response status
+        log_level = self.log_level
+        if response is not None:
+            if response.status_code in range(400, 500):
+                log_level = self.http_4xx_log_level
+            elif response.status_code in range(500, 600):
+                log_level = logging.ERROR
+
+        self.logger.log(logging.INFO, method_path, logging_context)
+        self._log_request_headers(request, logging_context, log_level)
+        self._log_request_body(request, logging_context, log_level)
+
+    def _log_request_headers(self, request, logging_context, log_level):
         headers = {
             k: v if k not in self.sensitive_headers else "*****"
             for k, v in request.META.items()
@@ -176,9 +184,9 @@ class LoggingMiddleware(object):
         }
 
         if headers:
-            self.logger.log(self.log_level, headers, logging_context)
+            self.logger.log(log_level, headers, logging_context)
 
-    def _log_request_body(self, request, logging_context):
+    def _log_request_body(self, request, logging_context, log_level):
         if request.body:
             content_type = request.META.get("CONTENT_TYPE", "")
             is_multipart = content_type.startswith("multipart/form-data")
@@ -187,7 +195,7 @@ class LoggingMiddleware(object):
             if is_multipart:
                 self._log_multipart(self._chunked_to_max(request.body), logging_context)
             else:
-                self.logger.log(self.log_level, self._chunked_to_max(request.body), logging_context)
+                self.logger.log(log_level, self._chunked_to_max(request.body), logging_context)
 
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
