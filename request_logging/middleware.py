@@ -195,7 +195,7 @@ class LoggingMiddleware(object):
             if is_multipart:
                 self.boundary = "--" + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
             if is_multipart:
-                self._log_multipart(self._chunked_to_max(self.cached_request_body), logging_context)
+                self._log_multipart(self._chunked_to_max(self.cached_request_body), logging_context, log_level)
             else:
                 self.logger.log(log_level, self._chunked_to_max(self.cached_request_body), logging_context)
 
@@ -237,7 +237,7 @@ class LoggingMiddleware(object):
             "kwargs": {"extra": {"request": request, "response": response}},
         }
 
-    def _log_multipart(self, body, logging_context):
+    def _log_multipart(self, body, logging_context, log_level):
         """
         Splits multipart body into parts separated by "boundary", then matches each part to BINARY_REGEX
         which searches for existence of "Content-Type" and capture of what type is this part.
@@ -247,7 +247,7 @@ class LoggingMiddleware(object):
         try:
             body_str = body.decode()
         except UnicodeDecodeError:
-            self.logger.log(self.log_level, "(multipart/form)", logging_context)
+            self.logger.log(log_level, "(multipart/form)", logging_context)
             return
 
         parts = body_str.split(self.boundary)
@@ -261,7 +261,7 @@ class LoggingMiddleware(object):
             if i != last:
                 part = part + self.boundary
 
-            self.logger.log(self.log_level, part, logging_context)
+            self.logger.log(log_level, part, logging_context)
 
     def _log_resp(self, level, response, logging_context):
         if re.match("^application/json", response.get("Content-Type", ""), re.I):
