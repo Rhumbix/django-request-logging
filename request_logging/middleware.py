@@ -106,8 +106,10 @@ class LoggingMiddleware(object):
 
         self.logger = ColourLogger("cyan", "magenta") if enable_colorize else Logger()
         self.boundary = ""
+        self.cached_request_body = None
 
     def __call__(self, request):
+        self.cached_request_body = request.body
         response = self.get_response(request)
         self.process_request(request, response)
         self.process_response(request, response)
@@ -187,15 +189,15 @@ class LoggingMiddleware(object):
             self.logger.log(log_level, headers, logging_context)
 
     def _log_request_body(self, request, logging_context, log_level):
-        if request.body:
+        if self.cached_request_body is not None:
             content_type = request.META.get("CONTENT_TYPE", "")
             is_multipart = content_type.startswith("multipart/form-data")
             if is_multipart:
                 self.boundary = "--" + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
             if is_multipart:
-                self._log_multipart(self._chunked_to_max(request.body), logging_context)
+                self._log_multipart(self._chunked_to_max(self.cached_request_body), logging_context)
             else:
-                self.logger.log(log_level, self._chunked_to_max(request.body), logging_context)
+                self.logger.log(log_level, self._chunked_to_max(self.cached_request_body), logging_context)
 
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
