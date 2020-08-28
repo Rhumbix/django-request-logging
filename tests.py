@@ -5,14 +5,19 @@ import re
 
 import logging
 import mock
-import sys
 from django.conf import settings
 from django.test import RequestFactory, override_settings
 from django.http import HttpResponse, StreamingHttpResponse
 
 import request_logging
-from request_logging.middleware import LoggingMiddleware, DEFAULT_LOG_LEVEL, DEFAULT_COLORIZE, DEFAULT_MAX_BODY_LENGTH,\
-    NO_LOGGING_MSG, DEFAULT_HTTP_4XX_LOG_LEVEL
+from request_logging.middleware import (
+    LoggingMiddleware,
+    DEFAULT_LOG_LEVEL,
+    DEFAULT_COLORIZE,
+    DEFAULT_MAX_BODY_LENGTH,
+    NO_LOGGING_MSG,
+    DEFAULT_HTTP_4XX_LOG_LEVEL,
+)
 
 settings.configure()
 
@@ -21,13 +26,13 @@ class BaseLogTestCase(unittest.TestCase):
     def _assert_logged(self, mock_log, expected_entry):
         calls = mock_log.log.call_args_list
         text = "".join([call[0][1] for call in calls])
-        self.assertIn( expected_entry, text )
+        self.assertIn(expected_entry, text)
 
     def _assert_logged_with_key_value(self, mock_log, expected_key, expected_value):
         calls = mock_log.log.call_args_list
         text = "".join([call[0][1] for call in calls])
-        self.assertIn( expected_key, text)
-        self.assertEqual(expected_value, text.split(expected_key)[1][4:len(expected_value)+4])
+        self.assertIn(expected_key, text)
+        self.assertEqual(expected_value, text.split(expected_key)[1][4 : len(expected_value) + 4])
 
     def _assert_logged_with_level(self, mock_log, level):
         calls = mock_log.log.call_args_list
@@ -38,8 +43,10 @@ class BaseLogTestCase(unittest.TestCase):
         calls = mock_log.log.call_args_list
         for call_args, call_kwargs in calls:
             additional_call_args = call_args[2:]
-            self.assertTrue(additional_args == additional_call_args,
-                            "Expected {} to be {}".format(additional_call_args, additional_args))
+            self.assertTrue(
+                additional_args == additional_call_args,
+                "Expected {} to be {}".format(additional_call_args, additional_args),
+            )
             self.assertTrue(kwargs == call_kwargs, "Expected {} to be {}".format(call_kwargs, kwargs))
 
     def _assert_not_logged(self, mock_log, unexpected_entry):
@@ -52,11 +59,12 @@ class BaseLogTestCase(unittest.TestCase):
 class MissingRoutes(BaseLogTestCase):
     def setUp(self):
         self.factory = RequestFactory()
+
         def get_response(request):
             response = mock.MagicMock()
             response.status_code = 200
-            response.get.return_value = 'application/json'
-            response._headers = {'test_headers': 'test_headers'}
+            response.get.return_value = "application/json"
+            response._headers = {"test_headers": "test_headers"}
             return response
 
         self.middleware = LoggingMiddleware(get_response)
@@ -72,11 +80,12 @@ class MissingRoutes(BaseLogTestCase):
 class LogTestCase(BaseLogTestCase):
     def setUp(self):
         self.factory = RequestFactory()
+
         def get_response(request):
             response = mock.MagicMock()
             response.status_code = 200
-            response.get.return_value = 'application/json'
-            response._headers = {'test_headers': 'test_headers'}
+            response.get.return_value = "application/json"
+            response._headers = {"test_headers": "test_headers"}
             return response
 
         self.middleware = LoggingMiddleware(get_response)
@@ -95,27 +104,26 @@ class LogTestCase(BaseLogTestCase):
         self._assert_logged(mock_log, "(binary data)")
 
     def test_request_jpeg_logged(self, mock_log):
-        body = b'--BoUnDaRyStRiNg\r\nContent-Disposition: form-data; name="file"; filename="campaign_carousel_img.jp' \
-               b'g"\r\nContent-Type: image/jpeg\r\n\r\n\xff\xd8\xff\xe1\x00\x18Exif\x00\x00II*\x00\x08\x00\x00\x00' \
-               b'\x00\x00\x00\x00\x00\x00\x00\x00\xff\xec\x00\x11Ducky\x00\x01\x00\x04\x00\x00\x00d\x00\x00\xff\xe1' \
-               b'\x03{http://ns.adobe.com/'
+        body = (
+            b'--BoUnDaRyStRiNg\r\nContent-Disposition: form-data; name="file"; filename="campaign_carousel_img.jp'
+            b'g"\r\nContent-Type: image/jpeg\r\n\r\n\xff\xd8\xff\xe1\x00\x18Exif\x00\x00II*\x00\x08\x00\x00\x00'
+            b"\x00\x00\x00\x00\x00\x00\x00\x00\xff\xec\x00\x11Ducky\x00\x01\x00\x04\x00\x00\x00d\x00\x00\xff\xe1"
+            b"\x03{http://ns.adobe.com/"
+        )
         datafile = io.BytesIO(body)
         request = self.factory.post("/somewhere", data={"file": datafile})
         self.middleware.process_request(request)
         self._assert_logged(mock_log, "(multipart/form)")
 
     def test_request_headers_logged(self, mock_log):
-        request = self.factory.post("/somewhere",
-                                    **{'HTTP_USER_AGENT': 'silly-human'})
+        request = self.factory.post("/somewhere", **{"HTTP_USER_AGENT": "silly-human"})
         self.middleware.process_request(request)
         self._assert_logged(mock_log, "HTTP_USER_AGENT")
 
     def test_request_headers_sensitive_logged_default(self, mock_log):
         request = self.factory.post(
-            "/somewhere", **{
-                'HTTP_AUTHORIZATION': 'sensitive-token',
-                'HTTP_PROXY_AUTHORIZATION': 'proxy-token'
-            })
+            "/somewhere", **{"HTTP_AUTHORIZATION": "sensitive-token", "HTTP_PROXY_AUTHORIZATION": "proxy-token"}
+        )
         middleware = LoggingMiddleware()
         middleware.process_request(request)
         self._assert_logged(mock_log, "HTTP_AUTHORIZATION")
@@ -125,32 +133,34 @@ class LogTestCase(BaseLogTestCase):
 
     @override_settings(REQUEST_LOGGING_SENSITIVE_HEADERS=["HTTP_AUTHORIZATION"])
     def test_request_headers_sensitive_logged(self, mock_log):
-        request = self.factory.post("/somewhere",
-            **{'HTTP_AUTHORIZATION': 'sensitive-token',
-            'HTTP_USER_AGENT': 'silly-human',
-            'HTTP_PROXY_AUTHORIZATION': 'proxy-token'
-            })
+        request = self.factory.post(
+            "/somewhere",
+            **{
+                "HTTP_AUTHORIZATION": "sensitive-token",
+                "HTTP_USER_AGENT": "silly-human",
+                "HTTP_PROXY_AUTHORIZATION": "proxy-token",
+            }
+        )
         middleware = LoggingMiddleware()
         middleware.process_request(request)
         self._assert_logged(mock_log, "HTTP_AUTHORIZATION")
         self._assert_logged(mock_log, "HTTP_USER_AGENT")
         self._assert_logged(mock_log, "HTTP_PROXY_AUTHORIZATION")
-        self._assert_logged_with_key_value(mock_log, "HTTP_AUTHORIZATION", '*****')
-        self._assert_logged_with_key_value(mock_log, "HTTP_USER_AGENT", 'silly-human')
-        self._assert_logged_with_key_value(mock_log, "HTTP_PROXY_AUTHORIZATION", 'proxy-token')
+        self._assert_logged_with_key_value(mock_log, "HTTP_AUTHORIZATION", "*****")
+        self._assert_logged_with_key_value(mock_log, "HTTP_USER_AGENT", "silly-human")
+        self._assert_logged_with_key_value(mock_log, "HTTP_PROXY_AUTHORIZATION", "proxy-token")
 
     def test_response_headers_logged(self, mock_log):
         request = self.factory.post("/somewhere")
         response = mock.MagicMock()
-        response.get.return_value = 'application/json'
-        response._headers = {'test_headers': 'test_headers'}
+        response.get.return_value = "application/json"
+        response._headers = {"test_headers": "test_headers"}
         self.middleware.process_response(request, response)
         self._assert_logged(mock_log, "test_headers")
 
     def test_call_logged(self, mock_log):
         body = u"some body"
-        request = self.factory.post("/somewhere", data={"file": body},
-                                    **{'HTTP_USER_AGENT': 'silly-human'})
+        request = self.factory.post("/somewhere", data={"file": body}, **{"HTTP_USER_AGENT": "silly-human"})
         self.middleware.__call__(request)
         self._assert_logged(mock_log, body)
         self._assert_logged(mock_log, "test_headers")
@@ -159,21 +169,21 @@ class LogTestCase(BaseLogTestCase):
     def test_call_binary_logged(self, mock_log):
         body = u"some body"
         datafile = io.StringIO(body)
-        request = self.factory.post("/somewhere", data={"file": datafile},
-                                    **{'HTTP_USER_AGENT': 'silly-human'})
+        request = self.factory.post("/somewhere", data={"file": datafile}, **{"HTTP_USER_AGENT": "silly-human"})
         self.middleware.__call__(request)
         self._assert_logged(mock_log, "(binary data)")
         self._assert_logged(mock_log, "test_headers")
         self._assert_logged(mock_log, "HTTP_USER_AGENT")
 
     def test_call_jpeg_logged(self, mock_log):
-        body = b'--BoUnDaRyStRiNg\r\nContent-Disposition: form-data; name="file"; filename="campaign_carousel_img.jp' \
-               b'g"\r\nContent-Type: image/jpeg\r\n\r\n\xff\xd8\xff\xe1\x00\x18Exif\x00\x00II*\x00\x08\x00\x00\x00' \
-               b'\x00\x00\x00\x00\x00\x00\x00\x00\xff\xec\x00\x11Ducky\x00\x01\x00\x04\x00\x00\x00d\x00\x00\xff\xe1' \
-               b'\x03{http://ns.adobe.com/'
+        body = (
+            b'--BoUnDaRyStRiNg\r\nContent-Disposition: form-data; name="file"; filename="campaign_carousel_img.jp'
+            b'g"\r\nContent-Type: image/jpeg\r\n\r\n\xff\xd8\xff\xe1\x00\x18Exif\x00\x00II*\x00\x08\x00\x00\x00'
+            b"\x00\x00\x00\x00\x00\x00\x00\x00\xff\xec\x00\x11Ducky\x00\x01\x00\x04\x00\x00\x00d\x00\x00\xff\xe1"
+            b"\x03{http://ns.adobe.com/"
+        )
         datafile = io.BytesIO(body)
-        request = self.factory.post("/somewhere", data={"file": datafile},
-                                    **{'HTTP_USER_AGENT': 'silly-human'})
+        request = self.factory.post("/somewhere", data={"file": datafile}, **{"HTTP_USER_AGENT": "silly-human"})
         self.middleware.__call__(request)
         self._assert_logged(mock_log, "(multipart/form)")
         self._assert_logged(mock_log, "test_headers")
@@ -182,9 +192,9 @@ class LogTestCase(BaseLogTestCase):
     def test_minimal_logging_when_streaming(self, mock_log):
         uri = "/somewhere"
         request = self.factory.get(uri)
-        response = StreamingHttpResponse(status=200, streaming_content=b'OK', content_type='application/json')
+        response = StreamingHttpResponse(status=200, streaming_content=b"OK", content_type="application/json")
         self.middleware.process_response(request, response=response)
-        self._assert_logged(mock_log, '(data_stream)')
+        self._assert_logged(mock_log, "(data_stream)")
 
 
 @mock.patch.object(request_logging.middleware, "request_logger")
@@ -196,47 +206,33 @@ class LoggingContextTestCase(BaseLogTestCase):
     def test_request_logging_context(self, mock_log):
         request = self.factory.post("/somewhere")
         self.middleware.process_request(request)
-        self._asset_logged_with_additional_args_and_kwargs(mock_log, (), {
-            'extra': {
-                'request': request,
-                'response': None,
-            },
-        })
+        self._asset_logged_with_additional_args_and_kwargs(
+            mock_log, (), {"extra": {"request": request, "response": None}}
+        )
 
     def test_response_logging_context(self, mock_log):
         request = self.factory.post("/somewhere")
         response = mock.MagicMock()
-        response.get.return_value = 'application/json'
-        response._headers = {'test_headers': 'test_headers'}
+        response.get.return_value = "application/json"
+        response._headers = {"test_headers": "test_headers"}
         self.middleware.process_response(request, response)
-        self._asset_logged_with_additional_args_and_kwargs(mock_log, (), {
-            'extra': {
-                'request': request,
-                'response': response,
-            },
-        })
+        self._asset_logged_with_additional_args_and_kwargs(
+            mock_log, (), {"extra": {"request": request, "response": response}}
+        )
 
     def test_get_logging_context_extensibility(self, mock_log):
         request = self.factory.post("/somewhere")
         self.middleware._get_logging_context = lambda request, response: {
-            'args': (1, True, 'Test'),
-            'kwargs': {
-                'extra': {
-                    'REQUEST': request,
-                    'middleware': self.middleware,
-                },
-                'exc_info': True,
-            },
+            "args": (1, True, "Test"),
+            "kwargs": {"extra": {"REQUEST": request, "middleware": self.middleware}, "exc_info": True},
         }
 
         self.middleware.process_request(request)
-        self._asset_logged_with_additional_args_and_kwargs(mock_log, (1, True, 'Test'), {
-            'extra': {
-                'REQUEST': request,
-                'middleware': self.middleware,
-            },
-            'exc_info': True,
-        })
+        self._asset_logged_with_additional_args_and_kwargs(
+            mock_log,
+            (1, True, "Test"),
+            {"extra": {"REQUEST": request, "middleware": self.middleware}, "exc_info": True},
+        )
 
 
 class BaseLogSettingsTestCase(BaseLogTestCase):
@@ -244,9 +240,7 @@ class BaseLogSettingsTestCase(BaseLogTestCase):
         body = u"some body"
         datafile = io.StringIO(body)
         self.request = RequestFactory().post(
-            "/somewhere",
-            data={'file': datafile},
-            **{'HTTP_USER_AGENT': 'silly-human'}
+            "/somewhere", data={"file": datafile}, **{"HTTP_USER_AGENT": "silly-human"}
         )
 
 
@@ -273,14 +267,15 @@ class LogSettingsLogLevelTestCase(BaseLogSettingsTestCase):
 class LogSettingsHttp4xxAsErrorTestCase(BaseLogTestCase):
     def setUp(self):
         from django.urls import set_urlconf
-        set_urlconf('test_urls')
+
+        set_urlconf("test_urls")
         self.factory = RequestFactory()
         self.request = self.factory.get("/not-a-valid-url")
 
         response = mock.MagicMock()
         response.status_code = 404
-        response.get.return_value = 'application/json'
-        response._headers = {'test_headers': 'test_headers'}
+        response.get.return_value = "application/json"
+        response._headers = {"test_headers": "test_headers"}
 
         self.response_404 = response
 
@@ -317,7 +312,7 @@ class LogSettingsColorizeTestCase(BaseLogSettingsTestCase):
         middleware.process_request(self.request)
         self.assertFalse(self._is_log_colorized(mock_log))
 
-    @override_settings(REQUEST_LOGGING_ENABLE_COLORIZE='Not a boolean')
+    @override_settings(REQUEST_LOGGING_ENABLE_COLORIZE="Not a boolean")
     def test_invalid_colorize(self, mock_log):
         with self.assertRaises(ValueError):
             LoggingMiddleware()
@@ -335,7 +330,7 @@ class LogSettingsColorizeTestCase(BaseLogSettingsTestCase):
         self.assertFalse(self._is_log_colorized(mock_log))
 
     def _is_log_colorized(self, mock_log):
-        reset_code = '\x1b[0m'
+        reset_code = "\x1b[0m"
         calls = mock_log.log.call_args_list
         logs = " ".join(call[0][1] for call in calls)
         return reset_code in logs
@@ -353,7 +348,7 @@ class LogSettingsMaxLengthTestCase(BaseLogTestCase):
         middleware.process_request(request)
 
         request_body_str = request.body if isinstance(request.body, str) else request.body.decode()
-        self._assert_logged(mock_log, re.sub(r'\r?\n', '', request_body_str[:DEFAULT_MAX_BODY_LENGTH]))
+        self._assert_logged(mock_log, re.sub(r"\r?\n", "", request_body_str[:DEFAULT_MAX_BODY_LENGTH]))
         self._assert_not_logged(mock_log, body)
 
     @override_settings(REQUEST_LOGGING_MAX_BODY_LENGTH=150, REQUEST_LOGGING_ENABLE_COLORIZE=False)
@@ -366,10 +361,10 @@ class LogSettingsMaxLengthTestCase(BaseLogTestCase):
         middleware.process_request(request)
 
         request_body_str = request.body if isinstance(request.body, str) else request.body.decode()
-        self._assert_logged(mock_log, re.sub(r'\r?\n', '', request_body_str[:150]))
+        self._assert_logged(mock_log, re.sub(r"\r?\n", "", request_body_str[:150]))
         self._assert_not_logged(mock_log, body)
 
-    @override_settings(REQUEST_LOGGING_MAX_BODY_LENGTH='Not an int')
+    @override_settings(REQUEST_LOGGING_MAX_BODY_LENGTH="Not an int")
     def test_invalid_max_body_length(self, mock_log):
         with self.assertRaises(ValueError):
             LoggingMiddleware()
@@ -379,7 +374,8 @@ class LogSettingsMaxLengthTestCase(BaseLogTestCase):
 class DecoratorTestCase(BaseLogTestCase):
     def setUp(self):
         from django.urls import set_urlconf
-        set_urlconf('test_urls')
+
+        set_urlconf("test_urls")
         self.factory = RequestFactory()
         self.middleware = LoggingMiddleware()
 
@@ -403,7 +399,7 @@ class DecoratorTestCase(BaseLogTestCase):
         self.middleware.process_request(request)
         self._assert_not_logged(mock_log, body)
         self._assert_not_logged(mock_log, NO_LOGGING_MSG)
-        self._assert_logged(mock_log, 'Custom message')
+        self._assert_logged(mock_log, "Custom message")
 
     def test_no_logging_decorator_silent(self, mock_log):
         body = u"some super secret body"
@@ -411,7 +407,7 @@ class DecoratorTestCase(BaseLogTestCase):
         self.middleware.process_request(request)
         self._assert_not_logged(mock_log, body)
         self._assert_not_logged(mock_log, NO_LOGGING_MSG)
-        self._assert_not_logged(mock_log, 'not logged because')
+        self._assert_not_logged(mock_log, "not logged because")
 
     def test_no_logging_empty_response_body(self, mock_log):
         body = u"our work of art"
@@ -419,12 +415,12 @@ class DecoratorTestCase(BaseLogTestCase):
         self.middleware.process_request(request)
         self._assert_not_logged(mock_log, body)
         self._assert_not_logged(mock_log, NO_LOGGING_MSG)
-        self._assert_logged(mock_log, 'Empty response body')
+        self._assert_logged(mock_log, "Empty response body")
 
     def test_no_logging_alternate_urlconf(self, mock_log):
         body = u"some super secret body"
         request = self.factory.post("/test_route", data={"file": body})
-        request.urlconf = 'test_urls_alternate'
+        request.urlconf = "test_urls_alternate"
         self.middleware.process_request(request)
         self._assert_not_logged(mock_log, body)
         self._assert_logged(mock_log, NO_LOGGING_MSG)
@@ -433,7 +429,7 @@ class DecoratorTestCase(BaseLogTestCase):
         body = u"our work of art"
         request = self.factory.post("/dont_log_empty_response_body", data={"file": body})
         self.middleware.process_request(request)
-        self._assert_logged(mock_log, 'POST')
+        self._assert_logged(mock_log, "POST")
 
     def test_still_logs_path(self, mock_log):
         body = u"our work of art"
@@ -447,7 +443,8 @@ class DecoratorTestCase(BaseLogTestCase):
 class DRFTestCase(BaseLogTestCase):
     def setUp(self):
         from django.urls import set_urlconf
-        set_urlconf('test_urls')
+
+        set_urlconf("test_urls")
         self.factory = RequestFactory()
         self.middleware = LoggingMiddleware()
 
@@ -460,10 +457,10 @@ class DRFTestCase(BaseLogTestCase):
     def test_no_response_logging_is_honored(self, mock_log):
         uri = "/widgets"
         request = self.factory.get(uri)
-        mock_response = HttpResponse('{"example":"response"}', content_type='application/json', status=422)
+        mock_response = HttpResponse('{"example":"response"}', content_type="application/json", status=422)
         self.middleware.process_response(request, response=mock_response)
         self._assert_not_logged(mock_log, '"example":"response"')
-        self._assert_logged(mock_log, '/widgets')
+        self._assert_logged(mock_log, "/widgets")
 
     def test_non_existent_drf_route_logs(self, mock_log):
         uri = "/widgets/1234"
@@ -473,5 +470,52 @@ class DRFTestCase(BaseLogTestCase):
         self._assert_not_logged(mock_log, "had you")
 
 
-if __name__ == '__main__':
+@mock.patch.object(request_logging.middleware, "request_logger")
+class LogRequestAtDifferentLevelsTestCase(BaseLogTestCase):
+    def setUp(self):
+        from django.urls import set_urlconf
+
+        set_urlconf("test_urls")
+        self.factory = RequestFactory()
+
+        self.request_200 = self.factory.get("/fine-thank-you")
+        self.response_200 = mock.MagicMock()
+        self.response_200.status_code = 200
+        self.response_200.get.return_value = "application/json"
+        self.response_200._headers = {"test_headers": "test_headers"}
+
+        self.request_404 = self.factory.get("/not-a-valid-url")
+        self.response_404 = mock.MagicMock()
+        self.response_404.status_code = 404
+        self.response_404.get.return_value = "application/json"
+        self.response_404._headers = {"test_headers": "test_headers"}
+
+        self.request_500 = self.factory.get("/bug")
+        self.response_500 = mock.MagicMock()
+        self.response_500.status_code = 500
+        self.response_500.get.return_value = "application/json"
+        self.response_500._headers = {"test_headers": "test_headers"}
+
+    def test_log_request_200(self, mock_log):
+        mock_log.reset_mock()
+        middleware = LoggingMiddleware()
+        middleware.process_request(self.request_200, self.response_200)
+        self._assert_logged_with_level(mock_log, DEFAULT_LOG_LEVEL)
+
+    def test_log_request_404_as_4xx(self, mock_log):
+        for level in (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR):
+            mock_log.reset_mock()
+            with override_settings(REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL=level):
+                middleware = LoggingMiddleware()
+                middleware.process_request(self.request_404, self.response_404)
+                self._assert_logged_with_level(mock_log, level)
+
+    def test_log_request_500_as_error(self, mock_log):
+        mock_log.reset_mock()
+        middleware = LoggingMiddleware()
+        middleware.process_request(self.request_500, self.response_500)
+        self._assert_logged_with_level(mock_log, logging.ERROR)
+
+
+if __name__ == "__main__":
     unittest.main()

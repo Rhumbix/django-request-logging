@@ -9,5 +9,5 @@ def view_func(request):
 
 
 urlpatterns = [
-    url(r'^test_route$', view_func),
+    url(r"^test_route$", view_func),
 ]
