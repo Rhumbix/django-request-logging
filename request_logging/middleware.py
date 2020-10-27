@@ -35,6 +35,8 @@ NO_LOGGING_MSG_ATTR = "no_logging_msg"
 NO_LOGGING_MSG = "No logging for this endpoint"
 NO_LOGGING_GET_RESPONSE = False
 request_logger = logging.getLogger("django.request")
+CLIENT_ERROR_STATUS_CODE = range(400, 500)
+SERVER_ERROR_STATUS_CODE = range(500, 600)
 
 
 class Logger:
@@ -181,9 +183,9 @@ class LoggingMiddleware(object):
         # Determine log level depending on response status
         log_level = self.log_level
         if response is not None:
-            if response.status_code in range(400, 500):
+            if response.status_code in CLIENT_ERROR_STATUS_CODE:
                 log_level = self.http_4xx_log_level
-            elif response.status_code in range(500, 600):
+            elif response.status_code in SERVER_ERROR_STATUS_CODE:
                 log_level = logging.ERROR
 
         self.logger.log(logging.INFO, method_path, logging_context)
@@ -224,7 +226,7 @@ class LoggingMiddleware(object):
                 return response
             logging_context = self._get_logging_context(request, response)
 
-            if response.status_code in range(400, 500):
+            if response.status_code in CLIENT_ERROR_STATUS_CODE:
                 if self.http_4xx_log_level == DEFAULT_HTTP_4XX_LOG_LEVEL:
                     # default, log as per 5xx
                     self.logger.log_error(logging.INFO, resp_log, logging_context)
@@ -232,7 +234,7 @@ class LoggingMiddleware(object):
                 else:
                     self.logger.log(self.http_4xx_log_level, resp_log, logging_context)
                     self._log_resp(self.log_level, response, logging_context)
-            elif response.status_code in range(500, 600):
+            elif response.status_code in SERVER_ERROR_STATUS_CODE:
                 self.logger.log_error(logging.INFO, resp_log, logging_context)
                 self._log_resp(logging.ERROR, response, logging_context)
             else:
