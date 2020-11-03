@@ -160,11 +160,11 @@ class LoggingMiddleware(object):
             # This is for django class-based views
             func = getattr(view.view_class, method, None)
 
-        no_logging = getattr(func, NO_LOGGING_ATTR, None)
+        no_logging = getattr(func, NO_LOGGING_ATTR, False)
         no_logging_msg = getattr(func, NO_LOGGING_MSG_ATTR, None)
         # If method is GET, don't log
         if self.no_logging_get_response and method == "get":
-            no_logging = "true"
+            no_logging = True
 
         return no_logging, no_logging_msg
 
