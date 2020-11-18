@@ -62,7 +62,7 @@ You can customized some behaves of django-request-logging by following settings 
 ### REQUEST_LOGGING_DATA_LOG_LEVEL
 By default, data will log in DEBUG level, you can change to other valid level (Ex. logging.INFO) if need.
 ### REQUEST_LOGGING_ENABLE_COLORIZE
-If you want to log into log file instead of console, you may want to remove ANSI color. You can set `REQUEST_LOGGING_ENABLE_COLORIZE=False` to disable colorize.
+It's enabled by default. If you want to log into log file instead of console, you may want to remove ANSI color. You can set `REQUEST_LOGGING_ENABLE_COLORIZE=False` to disable colorize.
 ### REQUEST_LOGGING_DISABLE_COLORIZE (Deprecated)
 This legacy setting will still available, but you should't use this setting anymore. You should use `REQUEST_LOGGING_ENABLE_COLORIZE` instead.
 We keep this settings for backward compatibility.
@@ -72,7 +72,7 @@ By default, max length of a request body and a response content is cut to 50000 
 By default, HTTP status codes between 400 - 499 are logged at ERROR level.  You can set `REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL=logging.WARNING` (etc) to override this.
 If you set `REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL=logging.INFO` they will be logged the same as normal requests.
 ### REQUEST_LOGGING_SENSITIVE_HEADERS
-The value of the headers defined in this settings will be replaced with `'*****'` to hide the sensitive information while logging. E.g. `REQUEST_LOGGING_SENSITIVE_HEADERS = ['HTTP_AUTHORIZATION', 'HTTP_USER_AGENT']`
+The value of the headers defined in this settings will be replaced with `'*****'` to hide the sensitive information while logging. By default it is set as `REQUEST_LOGGING_SENSITIVE_HEADERS = ["HTTP_AUTHORIZATION", "HTTP_PROXY_AUTHORIZATION"]`
 
 
 ## Deploying, Etc.
