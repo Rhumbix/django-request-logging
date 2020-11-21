@@ -16,6 +16,7 @@ DEFAULT_HTTP_4XX_LOG_LEVEL = logging.ERROR
 DEFAULT_COLORIZE = True
 DEFAULT_MAX_BODY_LENGTH = 50000  # log no more than 3k bytes of content
 DEFAULT_SENSITIVE_HEADERS = ["HTTP_AUTHORIZATION", "HTTP_PROXY_AUTHORIZATION"]
+DEFAULT_SENSITIVE_VIEWS = []
 SETTING_NAMES = {
     "log_level": "REQUEST_LOGGING_DATA_LOG_LEVEL",
     "http_4xx_log_level": "REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL",
@@ -23,6 +24,7 @@ SETTING_NAMES = {
     "colorize": "REQUEST_LOGGING_ENABLE_COLORIZE",
     "max_body_length": "REQUEST_LOGGING_MAX_BODY_LENGTH",
     "sensitive_headers": "REQUEST_LOGGING_SENSITIVE_HEADERS",
+    "sensitive_views": "REQUEST_LOGGING_SENSITIVE_VIEWS",
 }
 BINARY_REGEX = re.compile(r"(.+Content-Type:.*?)(\S+)/(\S+)(?:\r\n)*(.+)", re.S | re.I)
 BINARY_TYPES = ("image", "application")
@@ -71,6 +73,7 @@ class LoggingMiddleware(object):
         self.log_level = getattr(settings, SETTING_NAMES["log_level"], DEFAULT_LOG_LEVEL)
         self.http_4xx_log_level = getattr(settings, SETTING_NAMES["http_4xx_log_level"], DEFAULT_HTTP_4XX_LOG_LEVEL)
         self.sensitive_headers = getattr(settings, SETTING_NAMES["sensitive_headers"], DEFAULT_SENSITIVE_HEADERS)
+        self.sensitive_views = getattr(settings, SETTING_NAMES["sensitive_views"], DEFAULT_SENSITIVE_VIEWS)
         if not isinstance(self.sensitive_headers, list):
             raise ValueError(
                 "{} should be list. {} is not list.".format(SETTING_NAMES["sensitive_headers"], self.sensitive_headers)
@@ -123,6 +126,16 @@ class LoggingMiddleware(object):
         else:
             return self._log_request(request, response)
 
+    def _should_log_view(self, func):
+        full_path = '.'.join([func.__module__, func.__qualname__])
+        if full_path in self.sensitive_views:
+            no_logging = True
+            no_logging_msg = NO_LOGGING_MSG
+        else:
+            no_logging = getattr(func, NO_LOGGING_ATTR, False)
+            no_logging_msg = getattr(func, NO_LOGGING_MSG_ATTR, None)
+        return no_logging, no_logging_msg
+
     def _should_log_route(self, request):
         # request.urlconf may be set by middleware or application level code.
         # Use this urlconf if present or default to None.
@@ -150,9 +163,7 @@ class LoggingMiddleware(object):
         elif hasattr(view, "view_class"):
             # This is for django class-based views
             func = getattr(view.view_class, method, None)
-        no_logging = getattr(func, NO_LOGGING_ATTR, False)
-        no_logging_msg = getattr(func, NO_LOGGING_MSG_ATTR, None)
-        return no_logging, no_logging_msg
+        return self._should_log_view(func)
 
     def _skip_logging_request(self, request, reason):
         method_path = "{} {}".format(request.method, request.get_full_path())

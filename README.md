@@ -73,6 +73,9 @@ By default, HTTP status codes between 400 - 499 are logged at ERROR level.  You 
 If you set `REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL=logging.INFO` they will be logged the same as normal requests.
 ### REQUEST_LOGGING_SENSITIVE_HEADERS
 The value of the headers defined in this settings will be replaced with `'*****'` to hide the sensitive information while logging. E.g. `REQUEST_LOGGING_SENSITIVE_HEADERS = ['HTTP_AUTHORIZATION', 'HTTP_USER_AGENT']`
+### REQUEST_LOGGING_SENSITIVE_VIEWS
+A list of views (or view methods in case of class based views) that should not be logged. This has the same behaviour as the no_logging decorator, but can be used in case of 3rd party modules where the source cannot be modified
+`REQUEST_LOGGING_SENSITIVE_VIEWS = ['dj_rest_auth.views.LoginView.post']`
 
 
 ## Deploying, Etc.
