@@ -58,7 +58,7 @@ A `no_logging` decorator is included for views with sensitive data.
 By default, value of Http headers `HTTP_AUTHORIZATION` and `HTTP_PROXY_AUTHORIZATION` are replaced wih `*****`. You can use `REQUEST_LOGGING_SENSITIVE_HEADERS` setting to override this default behaviour with your list of sensitive headers.
 
 ## Django settings
-You can customized some behaves of django-request-logging by following settings in Django `settings.py`.
+You can customize some behaviours of django-request-logging by following settings in Django `settings.py`.
 ### REQUEST_LOGGING_DATA_LOG_LEVEL
 By default, data will log in DEBUG level, you can change to other valid level (Ex. logging.INFO) if need.
 ### REQUEST_LOGGING_ENABLE_COLORIZE
