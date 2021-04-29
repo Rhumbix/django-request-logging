@@ -1,0 +1,15 @@
+version: 2
+updates:
+- package-ecosystem: pip
+  directory: "/"
+  schedule:
+    interval: daily
+    time: "13:00"
+  open-pull-requests-limit: 10
+  ignore:
+  - dependency-name: coverage
+    versions:
+    - "5.4"
+  - dependency-name: djangorestframework
+    versions:
+    - 3.12.2
