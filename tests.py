@@ -72,7 +72,7 @@ class MissingRoutes(BaseLogTestCase):
     def test_no_exception_risen(self, mock_log):
         body = u"some body"
         request = self.factory.post("/a-missing-route-somewhere", data={"file": body})
-        self.middleware.process_request(request)
+        self.middleware.__call__(request)
         self._assert_logged(mock_log, body)
 
 
@@ -93,14 +93,14 @@ class LogTestCase(BaseLogTestCase):
     def test_request_body_logged(self, mock_log):
         body = u"some body"
         request = self.factory.post("/somewhere", data={"file": body})
-        self.middleware.process_request(request)
+        self.middleware.__call__(request)
         self._assert_logged(mock_log, body)
 
     def test_request_binary_logged(self, mock_log):
         body = u"some body"
         datafile = io.StringIO(body)
         request = self.factory.post("/somewhere", data={"file": datafile})
-        self.middleware.process_request(request)
+        self.middleware.__call__(request)
         self._assert_logged(mock_log, "(binary data)")
 
     def test_request_jpeg_logged(self, mock_log):
@@ -112,7 +112,7 @@ class LogTestCase(BaseLogTestCase):
         )
         datafile = io.BytesIO(body)
         request = self.factory.post("/somewhere", data={"file": datafile})
-        self.middleware.process_request(request)
+        self.middleware.__call__(request)
         self._assert_logged(mock_log, "(multipart/form)")
 
     def test_request_headers_logged(self, mock_log):
@@ -338,14 +338,28 @@ class LogSettingsColorizeTestCase(BaseLogSettingsTestCase):
 
 @mock.patch.object(request_logging.middleware, "request_logger")
 class LogSettingsMaxLengthTestCase(BaseLogTestCase):
+    def setUp(self):
+        from django.urls import set_urlconf
+
+        set_urlconf("test_urls")
+
+        self.factory = RequestFactory()
+
+        def get_response(request):
+            response = mock.MagicMock()
+            response.status_code = 200
+            response.get.return_value = "application/json"
+            response._headers = {"test_headers": "test_headers"}
+            return response
+
+        self.get_response = get_response
+
     @override_settings(REQUEST_LOGGING_ENABLE_COLORIZE=False)
     def test_default_max_body_length(self, mock_log):
-        factory = RequestFactory()
-        middleware = LoggingMiddleware()
-
         body = DEFAULT_MAX_BODY_LENGTH * "0" + "1"
-        request = factory.post("/somewhere", data={"file": body})
-        middleware.process_request(request)
+        request = self.factory.post("/somewhere", data={"file": body})
+        middleware = LoggingMiddleware(self.get_response)
+        middleware.__call__(request)
 
         request_body_str = request.body if isinstance(request.body, str) else request.body.decode()
         self._assert_logged(mock_log, re.sub(r"\r?\n", "", request_body_str[:DEFAULT_MAX_BODY_LENGTH]))
@@ -353,12 +367,10 @@ class LogSettingsMaxLengthTestCase(BaseLogTestCase):
 
     @override_settings(REQUEST_LOGGING_MAX_BODY_LENGTH=150, REQUEST_LOGGING_ENABLE_COLORIZE=False)
     def test_customized_max_body_length(self, mock_log):
-        factory = RequestFactory()
-        middleware = LoggingMiddleware()
-
         body = 150 * "0" + "1"
-        request = factory.post("/somewhere", data={"file": body})
-        middleware.process_request(request)
+        request = self.factory.post("/somewhere", data={"file": body})
+        middleware = LoggingMiddleware(self.get_response)
+        middleware.__call__(request)
 
         request_body_str = request.body if isinstance(request.body, str) else request.body.decode()
         self._assert_logged(mock_log, re.sub(r"\r?\n", "", request_body_str[:150]))
