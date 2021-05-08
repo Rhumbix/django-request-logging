@@ -1,6 +1,7 @@
 import logging
 import re
 
+from django import VERSION as django_version
 from django.conf import settings
 
 try:
@@ -15,7 +16,10 @@ DEFAULT_LOG_LEVEL = logging.DEBUG
 DEFAULT_HTTP_4XX_LOG_LEVEL = logging.ERROR
 DEFAULT_COLORIZE = True
 DEFAULT_MAX_BODY_LENGTH = 50000  # log no more than 3k bytes of content
-DEFAULT_SENSITIVE_HEADERS = ["HTTP_AUTHORIZATION", "HTTP_PROXY_AUTHORIZATION"]
+if django_version >= (3, 2, 0, "final", 0):
+    DEFAULT_SENSITIVE_HEADERS = ["Authorization", "Proxy-Authorization"]
+else:
+    DEFAULT_SENSITIVE_HEADERS = ["HTTP_AUTHORIZATION", "HTTP_PROXY_AUTHORIZATION"]
 SETTING_NAMES = {
     "log_level": "REQUEST_LOGGING_DATA_LOG_LEVEL",
     "http_4xx_log_level": "REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL",
@@ -179,11 +183,14 @@ class LoggingMiddleware(object):
         self._log_request_body(request, logging_context, log_level)
 
     def _log_request_headers(self, request, logging_context, log_level):
-        headers = {
-            k: v if k not in self.sensitive_headers else "*****"
-            for k, v in request.META.items()
-            if k.startswith("HTTP_")
-        }
+        if django_version >= (3, 2, 0, "final", 0):
+            headers = {k: v if k not in self.sensitive_headers else "*****" for k, v in request.headers.items()}
+        else:
+            headers = {
+                k: v if k not in self.sensitive_headers else "*****"
+                for k, v in request.META.items()
+                if k.startswith("HTTP_")
+            }
 
         if headers:
             self.logger.log(log_level, headers, logging_context)
@@ -265,7 +272,11 @@ class LoggingMiddleware(object):
 
     def _log_resp(self, level, response, logging_context):
         if re.match("^application/json", response.get("Content-Type", ""), re.I):
-            self.logger.log(level, response._headers, logging_context)
+            if django_version >= (3, 2, 0, "final", 0):
+                response_headers = response.headers
+            else:
+                response_headers = response._headers
+            self.logger.log(level, response_headers, logging_context)
             if response.streaming:
                 # There's a chance that if it's streaming it's because large and it might hit
                 # the max_body_length very often. Not to mention that StreamingHttpResponse
