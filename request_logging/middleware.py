@@ -16,10 +16,12 @@ DEFAULT_LOG_LEVEL = logging.DEBUG
 DEFAULT_HTTP_4XX_LOG_LEVEL = logging.ERROR
 DEFAULT_COLORIZE = True
 DEFAULT_MAX_BODY_LENGTH = 50000  # log no more than 3k bytes of content
-if django_version >= (3, 2, 0, "final", 0):
-    DEFAULT_SENSITIVE_HEADERS = ["Authorization", "Proxy-Authorization"]
-else:
-    DEFAULT_SENSITIVE_HEADERS = ["HTTP_AUTHORIZATION", "HTTP_PROXY_AUTHORIZATION"]
+IS_DJANGO_VERSION_GTE_3_2_0 = django_version >= (3, 2, 0, "final", 0)
+DEFAULT_SENSITIVE_HEADERS = [
+    "Authorization", "Proxy-Authorization"
+] if IS_DJANGO_VERSION_GTE_3_2_0 else [
+    "HTTP_AUTHORIZATION", "HTTP_PROXY_AUTHORIZATION"
+]
 SETTING_NAMES = {
     "log_level": "REQUEST_LOGGING_DATA_LOG_LEVEL",
     "http_4xx_log_level": "REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL",
@@ -183,7 +185,7 @@ class LoggingMiddleware(object):
         self._log_request_body(request, logging_context, log_level)
 
     def _log_request_headers(self, request, logging_context, log_level):
-        if django_version >= (3, 2, 0, "final", 0):
+        if IS_DJANGO_VERSION_GTE_3_2_0:
             headers = {k: v if k not in self.sensitive_headers else "*****" for k, v in request.headers.items()}
         else:
             headers = {
@@ -272,7 +274,7 @@ class LoggingMiddleware(object):
 
     def _log_resp(self, level, response, logging_context):
         if re.match("^application/json", response.get("Content-Type", ""), re.I):
-            if django_version >= (3, 2, 0, "final", 0):
+            if IS_DJANGO_VERSION_GTE_3_2_0:
                 response_headers = response.headers
             else:
                 response_headers = response._headers

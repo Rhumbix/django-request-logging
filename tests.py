@@ -5,7 +5,6 @@ import mock
 import re
 import unittest
 
-from django import VERSION as django_version
 from django.conf import settings
 from django.test import RequestFactory, override_settings
 from django.http import HttpResponse, StreamingHttpResponse
@@ -18,6 +17,7 @@ from request_logging.middleware import (
     DEFAULT_MAX_BODY_LENGTH,
     NO_LOGGING_MSG,
     DEFAULT_HTTP_4XX_LOG_LEVEL,
+    IS_DJANGO_VERSION_GTE_3_2_0,
 )
 
 settings.configure()
@@ -66,7 +66,7 @@ class MissingRoutes(BaseLogTestCase):
             response.status_code = 200
             response.get.return_value = "application/json"
             headers = {"test_headers": "test_headers"}
-            if django_version >= (3, 2, 0, "final", 0):
+            if IS_DJANGO_VERSION_GTE_3_2_0:
                 response.headers = headers
             else:
                 response._headers = headers
@@ -91,7 +91,7 @@ class LogTestCase(BaseLogTestCase):
             response.status_code = 200
             response.get.return_value = "application/json"
             headers = {"test_headers": "test_headers"}
-            if django_version >= (3, 2, 0, "final", 0):
+            if IS_DJANGO_VERSION_GTE_3_2_0:
                 response.headers = headers
             else:
                 response._headers = headers
@@ -127,7 +127,7 @@ class LogTestCase(BaseLogTestCase):
     def test_request_headers_logged(self, mock_log):
         request = self.factory.post("/somewhere", **{"HTTP_USER_AGENT": "silly-human"})
         self.middleware.process_request(request)
-        if django_version >= (3, 2, 0, "final", 0):
+        if IS_DJANGO_VERSION_GTE_3_2_0:
             self._assert_logged(mock_log, "User-Agent")
         else:
             self._assert_logged(mock_log, "HTTP_USER_AGENT")
@@ -138,13 +138,13 @@ class LogTestCase(BaseLogTestCase):
         )
         middleware = LoggingMiddleware()
         middleware.process_request(request)
-        if django_version >= (3, 2, 0, "final", 0):
+        if IS_DJANGO_VERSION_GTE_3_2_0:
             self._assert_logged(mock_log, "Authorization")
             self._assert_logged_with_key_value(mock_log, "Authorization", "*****")
         else:
             self._assert_logged(mock_log, "HTTP_AUTHORIZATION")
             self._assert_logged_with_key_value(mock_log, "HTTP_AUTHORIZATION", "*****")
-        if django_version >= (3, 2, 0, "final", 0):
+        if IS_DJANGO_VERSION_GTE_3_2_0:
             self._assert_logged(mock_log, "Proxy-Authorization")
             self._assert_logged_with_key_value(mock_log, "Proxy-Authorization", "*****")
         else:
@@ -153,7 +153,7 @@ class LogTestCase(BaseLogTestCase):
 
     @override_settings(
         REQUEST_LOGGING_SENSITIVE_HEADERS=["Authorization"]
-        if django_version >= (3, 2, 0, "final", 0)
+        if IS_DJANGO_VERSION_GTE_3_2_0
         else ["HTTP_AUTHORIZATION"]
     )
     def test_request_headers_sensitive_logged(self, mock_log):
@@ -167,19 +167,19 @@ class LogTestCase(BaseLogTestCase):
         )
         middleware = LoggingMiddleware()
         middleware.process_request(request)
-        if django_version >= (3, 2, 0, "final", 0):
+        if IS_DJANGO_VERSION_GTE_3_2_0:
             self._assert_logged(mock_log, "Authorization")
             self._assert_logged_with_key_value(mock_log, "Authorization", "*****")
         else:
             self._assert_logged(mock_log, "HTTP_AUTHORIZATION")
             self._assert_logged_with_key_value(mock_log, "HTTP_AUTHORIZATION", "*****")
-        if django_version >= (3, 2, 0, "final", 0):
+        if IS_DJANGO_VERSION_GTE_3_2_0:
             self._assert_logged(mock_log, "User-Agent")
             self._assert_logged_with_key_value(mock_log, "User-Agent", "silly-human")
         else:
             self._assert_logged(mock_log, "HTTP_USER_AGENT")
             self._assert_logged_with_key_value(mock_log, "HTTP_USER_AGENT", "silly-human")
-        if django_version >= (3, 2, 0, "final", 0):
+        if IS_DJANGO_VERSION_GTE_3_2_0:
             self._assert_logged(mock_log, "Proxy-Authorization")
             self._assert_logged_with_key_value(mock_log, "Proxy-Authorization", "proxy-token")
         else:
@@ -191,7 +191,7 @@ class LogTestCase(BaseLogTestCase):
         response = mock.MagicMock()
         response.get.return_value = "application/json"
         headers = {"test_headers": "test_headers"}
-        if django_version >= (3, 2, 0, "final", 0):
+        if IS_DJANGO_VERSION_GTE_3_2_0:
             response.headers = headers
         else:
             response._headers = headers
@@ -204,7 +204,7 @@ class LogTestCase(BaseLogTestCase):
         self.middleware.__call__(request)
         self._assert_logged(mock_log, body)
         self._assert_logged(mock_log, "test_headers")
-        if django_version >= (3, 2, 0, "final", 0):
+        if IS_DJANGO_VERSION_GTE_3_2_0:
             self._assert_logged(mock_log, "User-Agent")
         else:
             self._assert_logged(mock_log, "HTTP_USER_AGENT")
@@ -216,7 +216,7 @@ class LogTestCase(BaseLogTestCase):
         self.middleware.__call__(request)
         self._assert_logged(mock_log, "(binary data)")
         self._assert_logged(mock_log, "test_headers")
-        if django_version >= (3, 2, 0, "final", 0):
+        if IS_DJANGO_VERSION_GTE_3_2_0:
             self._assert_logged(mock_log, "User-Agent")
         else:
             self._assert_logged(mock_log, "HTTP_USER_AGENT")
@@ -233,7 +233,7 @@ class LogTestCase(BaseLogTestCase):
         self.middleware.__call__(request)
         self._assert_logged(mock_log, "(multipart/form)")
         self._assert_logged(mock_log, "test_headers")
-        if django_version >= (3, 2, 0, "final", 0):
+        if IS_DJANGO_VERSION_GTE_3_2_0:
             self._assert_logged(mock_log, "User-Agent")
         else:
             self._assert_logged(mock_log, "HTTP_USER_AGENT")
@@ -264,7 +264,7 @@ class LoggingContextTestCase(BaseLogTestCase):
         response = mock.MagicMock()
         response.get.return_value = "application/json"
         headers = {"test_headers": "test_headers"}
-        if django_version >= (3, 2, 0, "final", 0):
+        if IS_DJANGO_VERSION_GTE_3_2_0:
             response.headers = headers
         else:
             response._headers = headers
@@ -329,7 +329,7 @@ class LogSettingsHttp4xxAsErrorTestCase(BaseLogTestCase):
         response.status_code = 404
         response.get.return_value = "application/json"
         headers = {"test_headers": "test_headers"}
-        if django_version >= (3, 2, 0, "final", 0):
+        if IS_DJANGO_VERSION_GTE_3_2_0:
             response.headers = headers
         else:
             response._headers = headers
@@ -407,7 +407,7 @@ class LogSettingsMaxLengthTestCase(BaseLogTestCase):
             response.status_code = 200
             response.get.return_value = "application/json"
             headers = {"test_headers": "test_headers"}
-            if django_version >= (3, 2, 0, "final", 0):
+            if IS_DJANGO_VERSION_GTE_3_2_0:
                 response.headers = headers
             else:
                 response._headers = headers
@@ -555,7 +555,7 @@ class LogRequestAtDifferentLevelsTestCase(BaseLogTestCase):
         self.response_200 = mock.MagicMock()
         self.response_200.status_code = 200
         self.response_200.get.return_value = "application/json"
-        if django_version >= (3, 2, 0, "final", 0):
+        if IS_DJANGO_VERSION_GTE_3_2_0:
             self.response_200.headers = {"test_headers": "test_headers"}
         else:
             self.response_200._headers = {"test_headers": "test_headers"}
@@ -564,7 +564,7 @@ class LogRequestAtDifferentLevelsTestCase(BaseLogTestCase):
         self.response_404 = mock.MagicMock()
         self.response_404.status_code = 404
         self.response_404.get.return_value = "application/json"
-        if django_version >= (3, 2, 0, "final", 0):
+        if IS_DJANGO_VERSION_GTE_3_2_0:
             self.response_404.headers = {"test_headers": "test_headers"}
         else:
             self.response_404._headers = {"test_headers": "test_headers"}
@@ -573,7 +573,7 @@ class LogRequestAtDifferentLevelsTestCase(BaseLogTestCase):
         self.response_500 = mock.MagicMock()
         self.response_500.status_code = 500
         self.response_500.get.return_value = "application/json"
-        if django_version >= (3, 2, 0, "final", 0):
+        if IS_DJANGO_VERSION_GTE_3_2_0:
             self.response_500.headers = {"test_headers": "test_headers"}
         else:
             self.response_500._headers = {"test_headers": "test_headers"}
