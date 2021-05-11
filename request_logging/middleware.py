@@ -37,7 +37,6 @@ NO_LOGGING_MSG_ATTR = "no_logging_msg"
 NO_LOGGING_MSG = "No logging for this endpoint"
 request_logger = logging.getLogger("django.request")
 
-
 class Logger:
     def log(self, level, msg, logging_context):
         args = logging_context["args"]
@@ -50,13 +49,17 @@ class Logger:
 
 
 class ColourLogger(Logger):
-    def __init__(self, log_colour, log_error_colour):
-        self.log_colour = log_colour
-        self.log_error_colour = log_error_colour
+    def __init__(self):
+        self.log_colour = "cyan"
+        self.log_success_colour = "green"
+        self.log_error_colour = "magenta"
 
     def log(self, level, msg, logging_context):
         colour = self.log_error_colour if level >= logging.ERROR else self.log_colour
         self._log(level, msg, colour, logging_context)
+
+    def log_success(self, level, msg, logging_context):
+        self._log(level, msg, self.log_success_colour, logging_context)
 
     def log_error(self, level, msg, logging_context):
         # Forces colour to be log_error_colour no matter what level is
@@ -110,7 +113,7 @@ class LoggingMiddleware(object):
                 "{} should be int. {} is not int.".format(SETTING_NAMES["max_body_length"], self.max_body_length)
             )
 
-        self.logger = ColourLogger("cyan", "magenta") if enable_colorize else Logger()
+        self.logger = ColourLogger() if enable_colorize else Logger()
         self.boundary = ""
         self.cached_request_body = None
 
@@ -179,7 +182,8 @@ class LoggingMiddleware(object):
                 log_level = self.http_4xx_log_level
             elif response.status_code in range(500, 600):
                 log_level = logging.ERROR
-
+        
+        # Making this a bit cleared since it looks like a duplicate call in the logs
         self.logger.log(logging.INFO, method_path, logging_context)
         self._log_request_headers(request, logging_context, log_level)
         self._log_request_body(request, logging_context, log_level)
@@ -195,18 +199,21 @@ class LoggingMiddleware(object):
             }
 
         if headers:
+            # Logs headers
             self.logger.log(log_level, headers, logging_context)
 
     def _log_request_body(self, request, logging_context, log_level):
         if self.cached_request_body is not None:
-            content_type = request.META.get("CONTENT_TYPE", "")
-            is_multipart = content_type.startswith("multipart/form-data")
-            if is_multipart:
-                self.boundary = "--" + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
-            if is_multipart:
-                self._log_multipart(self._chunked_to_max(self.cached_request_body), logging_context, log_level)
-            else:
-                self.logger.log(log_level, self._chunked_to_max(self.cached_request_body), logging_context)
+            # Dont log empty bytes
+            if len(self.cached_request_body) > 1:
+                content_type = request.META.get("CONTENT_TYPE", "")
+                is_multipart = content_type.startswith("multipart/form-data")
+                if is_multipart:
+                    self.boundary = "--" + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
+                if is_multipart:
+                    self._log_multipart(self._chunked_to_max(self.cached_request_body), logging_context, log_level)
+                else:
+                    self.logger.log(log_level, self._chunked_to_max(self.cached_request_body), logging_context)
 
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
@@ -231,7 +238,8 @@ class LoggingMiddleware(object):
             self.logger.log_error(logging.INFO, resp_log, logging_context)
             self._log_resp(logging.ERROR, response, logging_context)
         else:
-            self.logger.log(logging.INFO, resp_log, logging_context)
+            # Success response
+            self.logger.log_success(logging.INFO, resp_log, logging_context)
             self._log_resp(self.log_level, response, logging_context)
 
         return response
@@ -278,15 +286,15 @@ class LoggingMiddleware(object):
                 response_headers = response.headers
             else:
                 response_headers = response._headers
-            self.logger.log(level, response_headers, logging_context)
+            self.logger.log_success(level, response_headers, logging_context)
             if response.streaming:
                 # There's a chance that if it's streaming it's because large and it might hit
                 # the max_body_length very often. Not to mention that StreamingHttpResponse
                 # documentation advises to iterate only once on the content.
                 # So the idea here is to just _not_ log it.
-                self.logger.log(level, "(data_stream)", logging_context)
+                self.logger.log_success(level, "(data_stream)", logging_context)
             else:
-                self.logger.log(level, self._chunked_to_max(response.content), logging_context)
+                self.logger.log_success(level, self._chunked_to_max(response.content), logging_context)
 
     def _chunked_to_max(self, msg):
         return msg[0:self.max_body_length]
