@@ -62,7 +62,7 @@ You can customize some behaviours of django-request-logging by following setting
 ### REQUEST_LOGGING_DATA_LOG_LEVEL
 By default, data will log in DEBUG level, you can change to other valid level (Ex. logging.INFO) if need.
 ### REQUEST_LOGGING_ENABLE_COLORIZE
-If you want to log into log file instead of console, you may want to remove ANSI color. You can set `REQUEST_LOGGING_ENABLE_COLORIZE=False` to disable colorize.
+It's enabled by default. If you want to log into log file instead of console, you may want to remove ANSI color. You can set `REQUEST_LOGGING_ENABLE_COLORIZE=False` to disable colorize.
 ### REQUEST_LOGGING_DISABLE_COLORIZE (Deprecated)
 This legacy setting will still available, but you should't use this setting anymore. You should use `REQUEST_LOGGING_ENABLE_COLORIZE` instead.
 We keep this settings for backward compatibility.
@@ -76,6 +76,7 @@ The value of the headers defined in this settings will be replaced with `'*****'
 ### REQUEST_LOGGING_SENSITIVE_VIEWS
 A list of views (or view methods in case of class based views) that should not be logged. This has the same behaviour as the no_logging decorator, but can be used in case of 3rd party modules where the source cannot be modified
 `REQUEST_LOGGING_SENSITIVE_VIEWS = ['dj_rest_auth.views.LoginView.post']`
+The value of the headers defined in this settings will be replaced with `'*****'` to hide the sensitive information while logging. By default it is set as `REQUEST_LOGGING_SENSITIVE_HEADERS = ["HTTP_AUTHORIZATION", "HTTP_PROXY_AUTHORIZATION"]`
 
 
 ## Deploying, Etc.

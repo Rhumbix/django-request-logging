@@ -1,10 +1,10 @@
 #! /usr/bin/env python
 import io
-import unittest
-import re
-
 import logging
 import mock
+import re
+import unittest
+
 from django.conf import settings
 from django.test import RequestFactory, override_settings
 from django.http import HttpResponse, StreamingHttpResponse
@@ -17,6 +17,7 @@ from request_logging.middleware import (
     DEFAULT_MAX_BODY_LENGTH,
     NO_LOGGING_MSG,
     DEFAULT_HTTP_4XX_LOG_LEVEL,
+    IS_DJANGO_VERSION_GTE_3_2_0,
 )
 
 settings.configure()
@@ -64,7 +65,11 @@ class MissingRoutes(BaseLogTestCase):
             response = mock.MagicMock()
             response.status_code = 200
             response.get.return_value = "application/json"
-            response._headers = {"test_headers": "test_headers"}
+            headers = {"test_headers": "test_headers"}
+            if IS_DJANGO_VERSION_GTE_3_2_0:
+                response.headers = headers
+            else:
+                response._headers = headers
             return response
 
         self.middleware = LoggingMiddleware(get_response)
@@ -72,7 +77,7 @@ class MissingRoutes(BaseLogTestCase):
     def test_no_exception_risen(self, mock_log):
         body = u"some body"
         request = self.factory.post("/a-missing-route-somewhere", data={"file": body})
-        self.middleware.process_request(request)
+        self.middleware.__call__(request)
         self._assert_logged(mock_log, body)
 
 
@@ -85,7 +90,11 @@ class LogTestCase(BaseLogTestCase):
             response = mock.MagicMock()
             response.status_code = 200
             response.get.return_value = "application/json"
-            response._headers = {"test_headers": "test_headers"}
+            headers = {"test_headers": "test_headers"}
+            if IS_DJANGO_VERSION_GTE_3_2_0:
+                response.headers = headers
+            else:
+                response._headers = headers
             return response
 
         self.middleware = LoggingMiddleware(get_response)
@@ -93,14 +102,14 @@ class LogTestCase(BaseLogTestCase):
     def test_request_body_logged(self, mock_log):
         body = u"some body"
         request = self.factory.post("/somewhere", data={"file": body})
-        self.middleware.process_request(request)
+        self.middleware.__call__(request)
         self._assert_logged(mock_log, body)
 
     def test_request_binary_logged(self, mock_log):
         body = u"some body"
         datafile = io.StringIO(body)
         request = self.factory.post("/somewhere", data={"file": datafile})
-        self.middleware.process_request(request)
+        self.middleware.__call__(request)
         self._assert_logged(mock_log, "(binary data)")
 
     def test_request_jpeg_logged(self, mock_log):
@@ -112,13 +121,16 @@ class LogTestCase(BaseLogTestCase):
         )
         datafile = io.BytesIO(body)
         request = self.factory.post("/somewhere", data={"file": datafile})
-        self.middleware.process_request(request)
+        self.middleware.__call__(request)
         self._assert_logged(mock_log, "(multipart/form)")
 
     def test_request_headers_logged(self, mock_log):
         request = self.factory.post("/somewhere", **{"HTTP_USER_AGENT": "silly-human"})
         self.middleware.process_request(request)
-        self._assert_logged(mock_log, "HTTP_USER_AGENT")
+        if IS_DJANGO_VERSION_GTE_3_2_0:
+            self._assert_logged(mock_log, "User-Agent")
+        else:
+            self._assert_logged(mock_log, "HTTP_USER_AGENT")
 
     def test_request_headers_sensitive_logged_default(self, mock_log):
         request = self.factory.post(
@@ -126,12 +138,24 @@ class LogTestCase(BaseLogTestCase):
         )
         middleware = LoggingMiddleware()
         middleware.process_request(request)
-        self._assert_logged(mock_log, "HTTP_AUTHORIZATION")
-        self._assert_logged(mock_log, "HTTP_PROXY_AUTHORIZATION")
-        self._assert_logged_with_key_value(mock_log, "HTTP_AUTHORIZATION", "*****")
-        self._assert_logged_with_key_value(mock_log, "HTTP_PROXY_AUTHORIZATION", "*****")
+        if IS_DJANGO_VERSION_GTE_3_2_0:
+            self._assert_logged(mock_log, "Authorization")
+            self._assert_logged_with_key_value(mock_log, "Authorization", "*****")
+        else:
+            self._assert_logged(mock_log, "HTTP_AUTHORIZATION")
+            self._assert_logged_with_key_value(mock_log, "HTTP_AUTHORIZATION", "*****")
+        if IS_DJANGO_VERSION_GTE_3_2_0:
+            self._assert_logged(mock_log, "Proxy-Authorization")
+            self._assert_logged_with_key_value(mock_log, "Proxy-Authorization", "*****")
+        else:
+            self._assert_logged(mock_log, "HTTP_PROXY_AUTHORIZATION")
+            self._assert_logged_with_key_value(mock_log, "HTTP_PROXY_AUTHORIZATION", "*****")
 
-    @override_settings(REQUEST_LOGGING_SENSITIVE_HEADERS=["HTTP_AUTHORIZATION"])
+    @override_settings(
+        REQUEST_LOGGING_SENSITIVE_HEADERS=["Authorization"]
+        if IS_DJANGO_VERSION_GTE_3_2_0
+        else ["HTTP_AUTHORIZATION"]
+    )
     def test_request_headers_sensitive_logged(self, mock_log):
         request = self.factory.post(
             "/somewhere",
@@ -143,18 +167,34 @@ class LogTestCase(BaseLogTestCase):
         )
         middleware = LoggingMiddleware()
         middleware.process_request(request)
-        self._assert_logged(mock_log, "HTTP_AUTHORIZATION")
-        self._assert_logged(mock_log, "HTTP_USER_AGENT")
-        self._assert_logged(mock_log, "HTTP_PROXY_AUTHORIZATION")
-        self._assert_logged_with_key_value(mock_log, "HTTP_AUTHORIZATION", "*****")
-        self._assert_logged_with_key_value(mock_log, "HTTP_USER_AGENT", "silly-human")
-        self._assert_logged_with_key_value(mock_log, "HTTP_PROXY_AUTHORIZATION", "proxy-token")
+        if IS_DJANGO_VERSION_GTE_3_2_0:
+            self._assert_logged(mock_log, "Authorization")
+            self._assert_logged_with_key_value(mock_log, "Authorization", "*****")
+        else:
+            self._assert_logged(mock_log, "HTTP_AUTHORIZATION")
+            self._assert_logged_with_key_value(mock_log, "HTTP_AUTHORIZATION", "*****")
+        if IS_DJANGO_VERSION_GTE_3_2_0:
+            self._assert_logged(mock_log, "User-Agent")
+            self._assert_logged_with_key_value(mock_log, "User-Agent", "silly-human")
+        else:
+            self._assert_logged(mock_log, "HTTP_USER_AGENT")
+            self._assert_logged_with_key_value(mock_log, "HTTP_USER_AGENT", "silly-human")
+        if IS_DJANGO_VERSION_GTE_3_2_0:
+            self._assert_logged(mock_log, "Proxy-Authorization")
+            self._assert_logged_with_key_value(mock_log, "Proxy-Authorization", "proxy-token")
+        else:
+            self._assert_logged(mock_log, "HTTP_PROXY_AUTHORIZATION")
+            self._assert_logged_with_key_value(mock_log, "HTTP_PROXY_AUTHORIZATION", "proxy-token")
 
     def test_response_headers_logged(self, mock_log):
         request = self.factory.post("/somewhere")
         response = mock.MagicMock()
         response.get.return_value = "application/json"
-        response._headers = {"test_headers": "test_headers"}
+        headers = {"test_headers": "test_headers"}
+        if IS_DJANGO_VERSION_GTE_3_2_0:
+            response.headers = headers
+        else:
+            response._headers = headers
         self.middleware.process_response(request, response)
         self._assert_logged(mock_log, "test_headers")
 
@@ -164,7 +204,10 @@ class LogTestCase(BaseLogTestCase):
         self.middleware.__call__(request)
         self._assert_logged(mock_log, body)
         self._assert_logged(mock_log, "test_headers")
-        self._assert_logged(mock_log, "HTTP_USER_AGENT")
+        if IS_DJANGO_VERSION_GTE_3_2_0:
+            self._assert_logged(mock_log, "User-Agent")
+        else:
+            self._assert_logged(mock_log, "HTTP_USER_AGENT")
 
     def test_call_binary_logged(self, mock_log):
         body = u"some body"
@@ -173,7 +216,10 @@ class LogTestCase(BaseLogTestCase):
         self.middleware.__call__(request)
         self._assert_logged(mock_log, "(binary data)")
         self._assert_logged(mock_log, "test_headers")
-        self._assert_logged(mock_log, "HTTP_USER_AGENT")
+        if IS_DJANGO_VERSION_GTE_3_2_0:
+            self._assert_logged(mock_log, "User-Agent")
+        else:
+            self._assert_logged(mock_log, "HTTP_USER_AGENT")
 
     def test_call_jpeg_logged(self, mock_log):
         body = (
@@ -187,7 +233,10 @@ class LogTestCase(BaseLogTestCase):
         self.middleware.__call__(request)
         self._assert_logged(mock_log, "(multipart/form)")
         self._assert_logged(mock_log, "test_headers")
-        self._assert_logged(mock_log, "HTTP_USER_AGENT")
+        if IS_DJANGO_VERSION_GTE_3_2_0:
+            self._assert_logged(mock_log, "User-Agent")
+        else:
+            self._assert_logged(mock_log, "HTTP_USER_AGENT")
 
     def test_minimal_logging_when_streaming(self, mock_log):
         uri = "/somewhere"
@@ -214,7 +263,11 @@ class LoggingContextTestCase(BaseLogTestCase):
         request = self.factory.post("/somewhere")
         response = mock.MagicMock()
         response.get.return_value = "application/json"
-        response._headers = {"test_headers": "test_headers"}
+        headers = {"test_headers": "test_headers"}
+        if IS_DJANGO_VERSION_GTE_3_2_0:
+            response.headers = headers
+        else:
+            response._headers = headers
         self.middleware.process_response(request, response)
         self._asset_logged_with_additional_args_and_kwargs(
             mock_log, (), {"extra": {"request": request, "response": response}}
@@ -275,7 +328,11 @@ class LogSettingsHttp4xxAsErrorTestCase(BaseLogTestCase):
         response = mock.MagicMock()
         response.status_code = 404
         response.get.return_value = "application/json"
-        response._headers = {"test_headers": "test_headers"}
+        headers = {"test_headers": "test_headers"}
+        if IS_DJANGO_VERSION_GTE_3_2_0:
+            response.headers = headers
+        else:
+            response._headers = headers
 
         self.response_404 = response
 
@@ -338,14 +395,32 @@ class LogSettingsColorizeTestCase(BaseLogSettingsTestCase):
 
 @mock.patch.object(request_logging.middleware, "request_logger")
 class LogSettingsMaxLengthTestCase(BaseLogTestCase):
+    def setUp(self):
+        from django.urls import set_urlconf
+
+        set_urlconf("test_urls")
+
+        self.factory = RequestFactory()
+
+        def get_response(request):
+            response = mock.MagicMock()
+            response.status_code = 200
+            response.get.return_value = "application/json"
+            headers = {"test_headers": "test_headers"}
+            if IS_DJANGO_VERSION_GTE_3_2_0:
+                response.headers = headers
+            else:
+                response._headers = headers
+            return response
+
+        self.get_response = get_response
+
     @override_settings(REQUEST_LOGGING_ENABLE_COLORIZE=False)
     def test_default_max_body_length(self, mock_log):
-        factory = RequestFactory()
-        middleware = LoggingMiddleware()
-
         body = DEFAULT_MAX_BODY_LENGTH * "0" + "1"
-        request = factory.post("/somewhere", data={"file": body})
-        middleware.process_request(request)
+        request = self.factory.post("/somewhere", data={"file": body})
+        middleware = LoggingMiddleware(self.get_response)
+        middleware.__call__(request)
 
         request_body_str = request.body if isinstance(request.body, str) else request.body.decode()
         self._assert_logged(mock_log, re.sub(r"\r?\n", "", request_body_str[:DEFAULT_MAX_BODY_LENGTH]))
@@ -353,12 +428,10 @@ class LogSettingsMaxLengthTestCase(BaseLogTestCase):
 
     @override_settings(REQUEST_LOGGING_MAX_BODY_LENGTH=150, REQUEST_LOGGING_ENABLE_COLORIZE=False)
     def test_customized_max_body_length(self, mock_log):
-        factory = RequestFactory()
-        middleware = LoggingMiddleware()
-
         body = 150 * "0" + "1"
-        request = factory.post("/somewhere", data={"file": body})
-        middleware.process_request(request)
+        request = self.factory.post("/somewhere", data={"file": body})
+        middleware = LoggingMiddleware(self.get_response)
+        middleware.__call__(request)
 
         request_body_str = request.body if isinstance(request.body, str) else request.body.decode()
         self._assert_logged(mock_log, re.sub(r"\r?\n", "", request_body_str[:150]))
@@ -482,19 +555,28 @@ class LogRequestAtDifferentLevelsTestCase(BaseLogTestCase):
         self.response_200 = mock.MagicMock()
         self.response_200.status_code = 200
         self.response_200.get.return_value = "application/json"
-        self.response_200._headers = {"test_headers": "test_headers"}
+        if IS_DJANGO_VERSION_GTE_3_2_0:
+            self.response_200.headers = {"test_headers": "test_headers"}
+        else:
+            self.response_200._headers = {"test_headers": "test_headers"}
 
         self.request_404 = self.factory.get("/not-a-valid-url")
         self.response_404 = mock.MagicMock()
         self.response_404.status_code = 404
         self.response_404.get.return_value = "application/json"
-        self.response_404._headers = {"test_headers": "test_headers"}
+        if IS_DJANGO_VERSION_GTE_3_2_0:
+            self.response_404.headers = {"test_headers": "test_headers"}
+        else:
+            self.response_404._headers = {"test_headers": "test_headers"}
 
         self.request_500 = self.factory.get("/bug")
         self.response_500 = mock.MagicMock()
         self.response_500.status_code = 500
         self.response_500.get.return_value = "application/json"
-        self.response_500._headers = {"test_headers": "test_headers"}
+        if IS_DJANGO_VERSION_GTE_3_2_0:
+            self.response_500.headers = {"test_headers": "test_headers"}
+        else:
+            self.response_500._headers = {"test_headers": "test_headers"}
 
     def test_log_request_200(self, mock_log):
         mock_log.reset_mock()
