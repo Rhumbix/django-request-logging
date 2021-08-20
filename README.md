@@ -58,7 +58,7 @@ A `no_logging` decorator is included for views with sensitive data.
 By default, value of Http headers `HTTP_AUTHORIZATION` and `HTTP_PROXY_AUTHORIZATION` are replaced wih `*****`. You can use `REQUEST_LOGGING_SENSITIVE_HEADERS` setting to override this default behaviour with your list of sensitive headers.
 
 ## Django settings
-You can customized some behaves of django-request-logging by following settings in Django `settings.py`.
+You can customize some behaviours of django-request-logging by following settings in Django `settings.py`.
 ### REQUEST_LOGGING_DATA_LOG_LEVEL
 By default, data will log in DEBUG level, you can change to other valid level (Ex. logging.INFO) if need.
 ### REQUEST_LOGGING_ENABLE_COLORIZE
@@ -73,6 +73,11 @@ By default, HTTP status codes between 400 - 499 are logged at ERROR level.  You 
 If you set `REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL=logging.INFO` they will be logged the same as normal requests.
 ### REQUEST_LOGGING_SENSITIVE_HEADERS
 The value of the headers defined in this settings will be replaced with `'*****'` to hide the sensitive information while logging. By default it is set as `REQUEST_LOGGING_SENSITIVE_HEADERS = ["HTTP_AUTHORIZATION", "HTTP_PROXY_AUTHORIZATION"]`
+### REQUEST_LOGGING_SENSITIVE_VIEWS
+A list of views (or view methods in case of class based views) that should not be logged. This has the same behaviour as the no_logging decorator, but can be used in case of 3rd party modules where the source cannot be modified
+`REQUEST_LOGGING_SENSITIVE_VIEWS = ['dj_rest_auth.views.LoginView.post']`
+### REQUEST_LOGGING_LOG_PROCESSING_TIME
+Calculate the processing time of the request in milliseconds and append them in the response logging. Defaults to `False`
 
 
 ## Deploying, Etc.

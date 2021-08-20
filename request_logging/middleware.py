@@ -1,5 +1,6 @@
 import logging
 import re
+import time
 
 from django import VERSION as django_version
 from django.conf import settings
@@ -22,6 +23,8 @@ DEFAULT_SENSITIVE_HEADERS = [
 ] if IS_DJANGO_VERSION_GTE_3_2_0 else [
     "HTTP_AUTHORIZATION", "HTTP_PROXY_AUTHORIZATION"
 ]
+DEFAULT_SENSITIVE_VIEWS = []
+DEFAULT_LOG_PROCESSING_TIME = False
 SETTING_NAMES = {
     "log_level": "REQUEST_LOGGING_DATA_LOG_LEVEL",
     "http_4xx_log_level": "REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL",
@@ -29,6 +32,8 @@ SETTING_NAMES = {
     "colorize": "REQUEST_LOGGING_ENABLE_COLORIZE",
     "max_body_length": "REQUEST_LOGGING_MAX_BODY_LENGTH",
     "sensitive_headers": "REQUEST_LOGGING_SENSITIVE_HEADERS",
+    "sensitive_views": "REQUEST_LOGGING_SENSITIVE_VIEWS",
+    "log_processing_time": "REQUEST_LOGGING_LOG_PROCESSING_TIME",
 }
 BINARY_REGEX = re.compile(r"(.+Content-Type:.*?)(\S+)/(\S+)(?:\r\n)*(.+)", re.S | re.I)
 BINARY_TYPES = ("image", "application")
@@ -77,6 +82,8 @@ class LoggingMiddleware(object):
         self.log_level = getattr(settings, SETTING_NAMES["log_level"], DEFAULT_LOG_LEVEL)
         self.http_4xx_log_level = getattr(settings, SETTING_NAMES["http_4xx_log_level"], DEFAULT_HTTP_4XX_LOG_LEVEL)
         self.sensitive_headers = getattr(settings, SETTING_NAMES["sensitive_headers"], DEFAULT_SENSITIVE_HEADERS)
+        self.sensitive_views = getattr(settings, SETTING_NAMES["sensitive_views"], DEFAULT_SENSITIVE_VIEWS)
+        self.log_processing_time = getattr(settings, SETTING_NAMES["log_processing_time"], DEFAULT_LOG_PROCESSING_TIME)
         if not isinstance(self.sensitive_headers, list):
             raise ValueError(
                 "{} should be list. {} is not list.".format(SETTING_NAMES["sensitive_headers"], self.sensitive_headers)
@@ -116,9 +123,19 @@ class LoggingMiddleware(object):
 
     def __call__(self, request):
         self.cached_request_body = request.body
+
+        if self.log_processing_time:
+            processing_start = time.time()
+
         response = self.get_response(request)
+
+        if self.log_processing_time:
+            processing_time = time.time() - processing_start
+        else:
+            processing_time = None
+
         self.process_request(request, response)
-        self.process_response(request, response)
+        self.process_response(request, response, processing_time)
         return response
 
     def process_request(self, request, response=None):
@@ -128,6 +145,16 @@ class LoggingMiddleware(object):
                 return self._skip_logging_request(request, because)
         else:
             return self._log_request(request, response)
+
+    def _should_log_view(self, func):
+        full_path = '.'.join([func.__module__, func.__qualname__])
+        if full_path in self.sensitive_views:
+            no_logging = True
+            no_logging_msg = NO_LOGGING_MSG
+        else:
+            no_logging = getattr(func, NO_LOGGING_ATTR, False)
+            no_logging_msg = getattr(func, NO_LOGGING_MSG_ATTR, None)
+        return no_logging, no_logging_msg
 
     def _should_log_route(self, request):
         # request.urlconf may be set by middleware or application level code.
@@ -156,9 +183,7 @@ class LoggingMiddleware(object):
         elif hasattr(view, "view_class"):
             # This is for django class-based views
             func = getattr(view.view_class, method, None)
-        no_logging = getattr(func, NO_LOGGING_ATTR, False)
-        no_logging_msg = getattr(func, NO_LOGGING_MSG_ATTR, None)
-        return no_logging, no_logging_msg
+        return self._should_log_view(func)
 
     def _skip_logging_request(self, request, reason):
         method_path = "{} {}".format(request.method, request.get_full_path())
@@ -208,8 +233,11 @@ class LoggingMiddleware(object):
             else:
                 self.logger.log(log_level, self._chunked_to_max(self.cached_request_body), logging_context)
 
-    def process_response(self, request, response):
+    def process_response(self, request, response, processing_time=None):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
+        if processing_time:
+            resp_log += ' [{} ms]'.format(int(processing_time*1000))
+
         skip_logging, because = self._should_log_route(request)
         if skip_logging:
             if because is not None:
