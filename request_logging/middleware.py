@@ -72,6 +72,11 @@ class ColourLogger(Logger):
 
 class LoggingMiddleware(object):
     def __init__(self, get_response=None):
+        # ensure that all the member references of LoggingMiddleware are read-only after construction
+        # no other methods/properties invocations mutate these references so they can be safely read from any thread
+        # https://stackoverflow.com/questions/6214509/is-django-middleware-thread-safe
+        # https://stackoverflow.com/questions/10763641/is-this-django-middleware-thread-safe
+        # https://blog.roseman.org.uk/2010/02/01/middleware-post-processing-django-gotcha/
         self.get_response = get_response
 
         self.log_level = getattr(settings, SETTING_NAMES["log_level"], DEFAULT_LOG_LEVEL)
@@ -111,23 +116,24 @@ class LoggingMiddleware(object):
             )
 
         self.logger = ColourLogger("cyan", "magenta") if enable_colorize else Logger()
-        self.boundary = ""
-        self.cached_request_body = None
 
     def __call__(self, request):
-        self.cached_request_body = request.body
+        # cache in a local reference (instead of a member reference) and then pass in as argument 
+        # in order to avoid other threads overwriting the original self.cached_request_body reference, 
+        # is this done to preserve the original value in case it is mutated during the get_response invocation?
+        cached_request_body = request.body
         response = self.get_response(request)
-        self.process_request(request, response)
+        self.process_request(request, response, cached_request_body)
         self.process_response(request, response)
         return response
 
-    def process_request(self, request, response=None):
+    def process_request(self, request, response, cached_request_body):
         skip_logging, because = self._should_log_route(request)
         if skip_logging:
             if because is not None:
                 return self._skip_logging_request(request, because)
         else:
-            return self._log_request(request, response)
+            return self._log_request(request, response, cached_request_body)
 
     def _should_log_route(self, request):
         # request.urlconf may be set by middleware or application level code.
@@ -168,7 +174,7 @@ class LoggingMiddleware(object):
         }
         self.logger.log(logging.INFO, method_path + " (not logged because '" + reason + "')", no_log_context)
 
-    def _log_request(self, request, response):
+    def _log_request(self, request, response, cached_request_body):
         method_path = "{} {}".format(request.method, request.get_full_path())
         logging_context = self._get_logging_context(request, None)
 
@@ -182,7 +188,7 @@ class LoggingMiddleware(object):
 
         self.logger.log(logging.INFO, method_path, logging_context)
         self._log_request_headers(request, logging_context, log_level)
-        self._log_request_body(request, logging_context, log_level)
+        self._log_request_body(request, logging_context, log_level, cached_request_body)
 
     def _log_request_headers(self, request, logging_context, log_level):
         if IS_DJANGO_VERSION_GTE_3_2_0:
@@ -197,16 +203,15 @@ class LoggingMiddleware(object):
         if headers:
             self.logger.log(log_level, headers, logging_context)
 
-    def _log_request_body(self, request, logging_context, log_level):
-        if self.cached_request_body is not None:
+    def _log_request_body(self, request, logging_context, log_level, cached_request_body):
+        if cached_request_body is not None:
             content_type = request.META.get("CONTENT_TYPE", "")
             is_multipart = content_type.startswith("multipart/form-data")
             if is_multipart:
-                self.boundary = "--" + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
-            if is_multipart:
-                self._log_multipart(self._chunked_to_max(self.cached_request_body), logging_context, log_level)
+                multipart_boundary = "--" + content_type[30:]  # First 30 characters are "multipart/form-data; boundary="
+                self._log_multipart(self._chunked_to_max(cached_request_body), logging_context, log_level, multipart_boundary)
             else:
-                self.logger.log(log_level, self._chunked_to_max(self.cached_request_body), logging_context)
+                self.logger.log(log_level, self._chunked_to_max(cached_request_body), logging_context)
 
     def process_response(self, request, response):
         resp_log = "{} {} - {}".format(request.method, request.get_full_path(), response.status_code)
@@ -246,7 +251,7 @@ class LoggingMiddleware(object):
             "kwargs": {"extra": {"request": request, "response": response}},
         }
 
-    def _log_multipart(self, body, logging_context, log_level):
+    def _log_multipart(self, body, logging_context, log_level, multipart_boundary):
         """
         Splits multipart body into parts separated by "boundary", then matches each part to BINARY_REGEX
         which searches for existence of "Content-Type" and capture of what type is this part.
@@ -259,7 +264,7 @@ class LoggingMiddleware(object):
             self.logger.log(log_level, "(multipart/form)", logging_context)
             return
 
-        parts = body_str.split(self.boundary)
+        parts = body_str.split(multipart_boundary)
         last = len(parts) - 1
         for i, part in enumerate(parts):
             if "Content-Type:" in part:
@@ -268,7 +273,7 @@ class LoggingMiddleware(object):
                     part = match.expand(r"\1\2/\3\r\n\r\n(binary data)\r\n")
 
             if i != last:
-                part = part + self.boundary
+                part = part + multipart_boundary
 
             self.logger.log(log_level, part, logging_context)
 

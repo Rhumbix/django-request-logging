@@ -126,7 +126,7 @@ class LogTestCase(BaseLogTestCase):
 
     def test_request_headers_logged(self, mock_log):
         request = self.factory.post("/somewhere", **{"HTTP_USER_AGENT": "silly-human"})
-        self.middleware.process_request(request)
+        self.middleware.process_request(request, None, request.body)
         if IS_DJANGO_VERSION_GTE_3_2_0:
             self._assert_logged(mock_log, "User-Agent")
         else:
@@ -137,7 +137,7 @@ class LogTestCase(BaseLogTestCase):
             "/somewhere", **{"HTTP_AUTHORIZATION": "sensitive-token", "HTTP_PROXY_AUTHORIZATION": "proxy-token"}
         )
         middleware = LoggingMiddleware()
-        middleware.process_request(request)
+        middleware.process_request(request, None, request.body)
         if IS_DJANGO_VERSION_GTE_3_2_0:
             self._assert_logged(mock_log, "Authorization")
             self._assert_logged_with_key_value(mock_log, "Authorization", "*****")
@@ -166,7 +166,7 @@ class LogTestCase(BaseLogTestCase):
             }
         )
         middleware = LoggingMiddleware()
-        middleware.process_request(request)
+        middleware.process_request(request, None, request.body)
         if IS_DJANGO_VERSION_GTE_3_2_0:
             self._assert_logged(mock_log, "Authorization")
             self._assert_logged_with_key_value(mock_log, "Authorization", "*****")
@@ -254,7 +254,7 @@ class LoggingContextTestCase(BaseLogTestCase):
 
     def test_request_logging_context(self, mock_log):
         request = self.factory.post("/somewhere")
-        self.middleware.process_request(request)
+        self.middleware.process_request(request, None, request.body)
         self._asset_logged_with_additional_args_and_kwargs(
             mock_log, (), {"extra": {"request": request, "response": None}}
         )
@@ -280,7 +280,7 @@ class LoggingContextTestCase(BaseLogTestCase):
             "kwargs": {"extra": {"REQUEST": request, "middleware": self.middleware}, "exc_info": True},
         }
 
-        self.middleware.process_request(request)
+        self.middleware.process_request(request, None, request.body)
         self._asset_logged_with_additional_args_and_kwargs(
             mock_log,
             (1, True, "Test"),
@@ -301,13 +301,13 @@ class BaseLogSettingsTestCase(BaseLogTestCase):
 class LogSettingsLogLevelTestCase(BaseLogSettingsTestCase):
     def test_logging_default_debug_level(self, mock_log):
         middleware = LoggingMiddleware()
-        middleware.process_request(self.request)
+        middleware.process_request(self.request, None, self.request.body)
         self._assert_logged_with_level(mock_log, DEFAULT_LOG_LEVEL)
 
     @override_settings(REQUEST_LOGGING_DATA_LOG_LEVEL=logging.INFO)
     def test_logging_with_customized_log_level(self, mock_log):
         middleware = LoggingMiddleware()
-        middleware.process_request(self.request)
+        middleware.process_request(self.request, None, self.request.body)
         self._assert_logged_with_level(mock_log, logging.INFO)
 
     @override_settings(REQUEST_LOGGING_DATA_LOG_LEVEL=None)
@@ -360,13 +360,13 @@ class LogSettingsHttp4xxAsErrorTestCase(BaseLogTestCase):
 class LogSettingsColorizeTestCase(BaseLogSettingsTestCase):
     def test_default_colorize(self, mock_log):
         middleware = LoggingMiddleware()
-        middleware.process_request(self.request)
+        middleware.process_request(self.request, None, self.request.body)
         self.assertEqual(DEFAULT_COLORIZE, self._is_log_colorized(mock_log))
 
     @override_settings(REQUEST_LOGGING_ENABLE_COLORIZE=False)
     def test_disable_colorize(self, mock_log):
         middleware = LoggingMiddleware()
-        middleware.process_request(self.request)
+        middleware.process_request(self.request, None, self.request.body)
         self.assertFalse(self._is_log_colorized(mock_log))
 
     @override_settings(REQUEST_LOGGING_ENABLE_COLORIZE="Not a boolean")
@@ -377,13 +377,13 @@ class LogSettingsColorizeTestCase(BaseLogSettingsTestCase):
     @override_settings(REQUEST_LOGGING_DISABLE_COLORIZE=False)
     def test_legacy_settings(self, mock_log):
         middleware = LoggingMiddleware()
-        middleware.process_request(self.request)
+        middleware.process_request(self.request, None, self.request.body)
         self.assertFalse(self._is_log_colorized(mock_log))
 
     @override_settings(REQUEST_LOGGING_DISABLE_COLORIZE=False, REQUEST_LOGGING_ENABLE_COLORIZE=True)
     def test_legacy_settings_taking_precedence(self, mock_log):
         middleware = LoggingMiddleware()
-        middleware.process_request(self.request)
+        middleware.process_request(self.request, None, self.request.body)
         self.assertFalse(self._is_log_colorized(mock_log))
 
     def _is_log_colorized(self, mock_log):
@@ -455,21 +455,21 @@ class DecoratorTestCase(BaseLogTestCase):
     def test_no_logging_decorator_class_view(self, mock_log):
         body = u"some super secret body"
         request = self.factory.post("/test_class", data={"file": body})
-        self.middleware.process_request(request)
+        self.middleware.process_request(request, None, request.body)
         self._assert_not_logged(mock_log, body)
         self._assert_logged(mock_log, NO_LOGGING_MSG)
 
     def test_no_logging_decorator_func_view(self, mock_log):
         body = u"some super secret body"
         request = self.factory.post("/test_func", data={"file": body})
-        self.middleware.process_request(request)
+        self.middleware.process_request(request, None, request.body)
         self._assert_not_logged(mock_log, body)
         self._assert_logged(mock_log, NO_LOGGING_MSG)
 
     def test_no_logging_decorator_custom_msg(self, mock_log):
         body = u"some super secret body"
         request = self.factory.post("/test_msg", data={"file": body})
-        self.middleware.process_request(request)
+        self.middleware.process_request(request, None, request.body)
         self._assert_not_logged(mock_log, body)
         self._assert_not_logged(mock_log, NO_LOGGING_MSG)
         self._assert_logged(mock_log, "Custom message")
@@ -477,7 +477,7 @@ class DecoratorTestCase(BaseLogTestCase):
     def test_no_logging_decorator_silent(self, mock_log):
         body = u"some super secret body"
         request = self.factory.post("/dont_log_silent", data={"file": body})
-        self.middleware.process_request(request)
+        self.middleware.process_request(request, None, request.body)
         self._assert_not_logged(mock_log, body)
         self._assert_not_logged(mock_log, NO_LOGGING_MSG)
         self._assert_not_logged(mock_log, "not logged because")
@@ -485,7 +485,7 @@ class DecoratorTestCase(BaseLogTestCase):
     def test_no_logging_empty_response_body(self, mock_log):
         body = u"our work of art"
         request = self.factory.post("/dont_log_empty_response_body", data={"file": body})
-        self.middleware.process_request(request)
+        self.middleware.process_request(request, None, request.body)
         self._assert_not_logged(mock_log, body)
         self._assert_not_logged(mock_log, NO_LOGGING_MSG)
         self._assert_logged(mock_log, "Empty response body")
@@ -494,21 +494,21 @@ class DecoratorTestCase(BaseLogTestCase):
         body = u"some super secret body"
         request = self.factory.post("/test_route", data={"file": body})
         request.urlconf = "test_urls_alternate"
-        self.middleware.process_request(request)
+        self.middleware.process_request(request, None, request.body)
         self._assert_not_logged(mock_log, body)
         self._assert_logged(mock_log, NO_LOGGING_MSG)
 
     def test_still_logs_verb(self, mock_log):
         body = u"our work of art"
         request = self.factory.post("/dont_log_empty_response_body", data={"file": body})
-        self.middleware.process_request(request)
+        self.middleware.process_request(request, None, request.body)
         self._assert_logged(mock_log, "POST")
 
     def test_still_logs_path(self, mock_log):
         body = u"our work of art"
         uri = "/dont_log_empty_response_body"
         request = self.factory.post(uri, data={"file": body})
-        self.middleware.process_request(request)
+        self.middleware.process_request(request, None, request.body)
         self._assert_logged(mock_log, uri)
 
 
@@ -524,7 +524,7 @@ class DRFTestCase(BaseLogTestCase):
     def test_no_request_logging_is_honored(self, mock_log):
         uri = "/widgets"
         request = self.factory.get(uri)
-        self.middleware.process_request(request)
+        self.middleware.process_request(request, None, request.body)
         self._assert_logged(mock_log, "DRF explicit annotation")
 
     def test_no_response_logging_is_honored(self, mock_log):
@@ -538,7 +538,7 @@ class DRFTestCase(BaseLogTestCase):
     def test_non_existent_drf_route_logs(self, mock_log):
         uri = "/widgets/1234"
         request = self.factory.patch(uri, data={"almost": "had you"})
-        self.middleware.process_request(request)
+        self.middleware.process_request(request, None, request.body)
         self._assert_not_logged(mock_log, "almost")
         self._assert_not_logged(mock_log, "had you")
 
@@ -581,7 +581,7 @@ class LogRequestAtDifferentLevelsTestCase(BaseLogTestCase):
     def test_log_request_200(self, mock_log):
         mock_log.reset_mock()
         middleware = LoggingMiddleware()
-        middleware.process_request(self.request_200, self.response_200)
+        middleware.process_request(self.request_200, self.response_200, self.request_200.body)
         self._assert_logged_with_level(mock_log, DEFAULT_LOG_LEVEL)
 
     def test_log_request_404_as_4xx(self, mock_log):
@@ -589,13 +589,13 @@ class LogRequestAtDifferentLevelsTestCase(BaseLogTestCase):
             mock_log.reset_mock()
             with override_settings(REQUEST_LOGGING_HTTP_4XX_LOG_LEVEL=level):
                 middleware = LoggingMiddleware()
-                middleware.process_request(self.request_404, self.response_404)
+                middleware.process_request(self.request_404, self.response_404, self.request_404.body)
                 self._assert_logged_with_level(mock_log, level)
 
     def test_log_request_500_as_error(self, mock_log):
         mock_log.reset_mock()
         middleware = LoggingMiddleware()
-        middleware.process_request(self.request_500, self.response_500)
+        middleware.process_request(self.request_500, self.response_500, self.request_500.body)
         self._assert_logged_with_level(mock_log, logging.ERROR)
 
 
