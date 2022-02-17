@@ -39,14 +39,14 @@ if sys.argv[-1] == "publish":
 
 
 setup(
-    name="django-request-logging",
+    name="anx-django-request-logging",
     version=version,
     description="Django middleware that logs http request body.",
     long_description=read("README.md"),
     long_description_content_type="text/markdown",
-    url="https://github.com/Rhumbix/django-request-logging.git",
-    author="Rhumbix",
-    author_email="dev@rhumbix.com",
+    url="https://github.com/anexia-it/anx-django-request-logging",
+    author="Alexandra Bruckner",
+    author_email="abruckner@anexia-it.com",
     license="MIT",
     packages=["request_logging"],
     install_requires=["Django"],

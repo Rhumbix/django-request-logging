@@ -35,7 +35,42 @@ BINARY_TYPES = ("image", "application")
 NO_LOGGING_ATTR = "no_logging"
 NO_LOGGING_MSG_ATTR = "no_logging_msg"
 NO_LOGGING_MSG = "No logging for this endpoint"
-request_logger = logging.getLogger("django.request")
+NO_LOGGING_DEFAULT_VALUE = getattr(
+    settings,
+    "DJANGO_REQUEST_LOGGING_NO_LOGGING_DEFAULT_VALUE",
+    False
+)
+LOG_HEADERS_ATTR = "log_headers"
+LOG_HEADERS_DEFAULT_VALUE = getattr(
+    settings,
+    "DJANGO_REQUEST_LOGGING_LOG_HEADERS_DEFAULT_VALUE",
+    True
+)
+NO_HEADER_LOGGING_MSG_ATTR = "no_header_logging_msg"
+NO_HEADER_LOGGING_MSG = "No header logging for this endpoint"
+LOG_BODY_ATTR = "log_body"
+LOG_BODY_DEFAULT_VALUE = getattr(
+    settings,
+    "DJANGO_REQUEST_LOGGING_LOG_BODY_DEFAULT_VALUE",
+    True
+)
+NO_BODY_LOGGING_MSG_ATTR = "no_body_logging_msg"
+NO_BODY_LOGGING_MSG = "No body logging for this endpoint"
+LOG_RESPONSE_ATTR = "response_logging"
+LOG_RESPONSE_DEFAULT_VALUE = getattr(
+    settings,
+    "DJANGO_REQUEST_LOGGING_LOG_RESPONSE_DEFAULT_VALUE",
+    True
+)
+NO_RESPONSE_LOGGING_MSG_ATTR = "no_response_logging_msg"
+NO_RESPONSE_LOGGING_MSG = "No response logging for this endpoint"
+
+LOGGER_NAME = getattr(
+    settings,
+    "DJANGO_REQUEST_LOGGING_LOGGER_NAME",
+    "django.request"
+)
+request_logger = logging.getLogger(LOGGER_NAME)
 
 
 class Logger:
@@ -118,8 +153,8 @@ class LoggingMiddleware(object):
         self.logger = ColourLogger("cyan", "magenta") if enable_colorize else Logger()
 
     def __call__(self, request):
-        # cache in a local reference (instead of a member reference) and then pass in as argument 
-        # in order to avoid other threads overwriting the original self.cached_request_body reference, 
+        # cache in a local reference (instead of a member reference) and then pass in as argument
+        # in order to avoid other threads overwriting the original self.cached_request_body reference,
         # is this done to preserve the original value in case it is mutated during the get_response invocation?
         cached_request_body = request.body
         response = self.get_response(request)
@@ -135,7 +170,7 @@ class LoggingMiddleware(object):
         else:
             return self._log_request(request, response, cached_request_body)
 
-    def _should_log_route(self, request):
+    def _get_func(self, request):
         # request.urlconf may be set by middleware or application level code.
         # Use this urlconf if present or default to None.
         # https://docs.djangoproject.com/en/2.1/topics/http/urls/#how-django-processes-a-request
@@ -162,9 +197,32 @@ class LoggingMiddleware(object):
         elif hasattr(view, "view_class"):
             # This is for django class-based views
             func = getattr(view.view_class, method, None)
-        no_logging = getattr(func, NO_LOGGING_ATTR, False)
+
+        return func
+
+    def _should_log_route(self, request):
+        func = self._get_func(request)
+        no_logging = getattr(func, NO_LOGGING_ATTR, NO_LOGGING_DEFAULT_VALUE)
         no_logging_msg = getattr(func, NO_LOGGING_MSG_ATTR, None)
         return no_logging, no_logging_msg
+
+    def _should_log_headers(self, request):
+        func = self._get_func(request)
+        header_logging = getattr(func, LOG_HEADERS_ATTR, LOG_HEADERS_DEFAULT_VALUE)
+        no_header_logging_msg = getattr(func, NO_HEADER_LOGGING_MSG_ATTR, None)
+        return header_logging, no_header_logging_msg
+
+    def _should_log_body(self, request):
+        func = self._get_func(request)
+        body_logging = getattr(func, LOG_BODY_ATTR, LOG_BODY_DEFAULT_VALUE)
+        no_body_logging_msg = getattr(func, NO_BODY_LOGGING_MSG_ATTR, None)
+        return body_logging, no_body_logging_msg
+
+    def _should_log_response(self, request):
+        func = self._get_func(request)
+        response_logging = getattr(func, LOG_RESPONSE_ATTR, LOG_RESPONSE_DEFAULT_VALUE)
+        no_response_logging_msg = getattr(func, NO_RESPONSE_LOGGING_MSG_ATTR, None)
+        return response_logging, no_response_logging_msg
 
     def _skip_logging_request(self, request, reason):
         method_path = "{} {}".format(request.method, request.get_full_path())
@@ -191,6 +249,14 @@ class LoggingMiddleware(object):
         self._log_request_body(request, logging_context, log_level, cached_request_body)
 
     def _log_request_headers(self, request, logging_context, log_level):
+        log_headers, because = self._should_log_headers(request)
+        if not log_headers:
+            if because is not None:
+                self.logger.log_error(
+                    logging.INFO, "no headers logged", {"args": {}, "kwargs": {"extra": {"no_header_logging": because}}}
+                )
+            return None
+
         if IS_DJANGO_VERSION_GTE_3_2_0:
             headers = {k: v if k not in self.sensitive_headers else "*****" for k, v in request.headers.items()}
         else:
@@ -204,6 +270,14 @@ class LoggingMiddleware(object):
             self.logger.log(log_level, headers, logging_context)
 
     def _log_request_body(self, request, logging_context, log_level, cached_request_body):
+        log_body, because = self._should_log_body(request)
+        if not log_body:
+            if because is not None:
+                self.logger.log_error(
+                    logging.INFO, "no body logged", {"args": {}, "kwargs": {"extra": {"log_body": because}}}
+                )
+            return None
+
         if cached_request_body is not None:
             content_type = request.META.get("CONTENT_TYPE", "")
             is_multipart = content_type.startswith("multipart/form-data")
@@ -220,6 +294,13 @@ class LoggingMiddleware(object):
             if because is not None:
                 self.logger.log_error(
                     logging.INFO, resp_log, {"args": {}, "kwargs": {"extra": {"no_logging": because}}}
+                )
+            return response
+        log_response, because = self._should_log_response(request)
+        if not log_response:
+            if because is not None:
+                self.logger.log_error(
+                    logging.INFO, resp_log, {"args": {}, "kwargs": {"extra": {"log_response": because}}}
                 )
             return response
         logging_context = self._get_logging_context(request, response)
