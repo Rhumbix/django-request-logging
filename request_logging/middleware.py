@@ -147,8 +147,12 @@ class LoggingMiddleware(object):
             return self._log_request(request, response)
 
     def _should_log_view(self, func):
-        full_path = '.'.join([func.__module__, func.__qualname__])
-        if full_path in self.sensitive_views:
+        if func:
+            full_path = '.'.join([func.__module__, func.__qualname__])
+        else:
+            full_path = None
+
+        if full_path is not None and full_path in self.sensitive_views:
             no_logging = True
             no_logging_msg = NO_LOGGING_MSG
         else:
